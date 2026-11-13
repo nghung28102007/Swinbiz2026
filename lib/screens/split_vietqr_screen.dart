@@ -445,8 +445,31 @@ class _SplitVietQrScreenState extends ConsumerState<SplitVietQrScreen> {
                         ),
                         const SizedBox(height: 12),
 
-                        // Interactive Split Items List (Overflow-safe with Wrap)
-                        ...botState.splitItems.map((item) {
+                        if (botState.splitItems.isEmpty)
+                          Container(
+                            width: double.infinity,
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 14,
+                              vertical: 16,
+                            ),
+                            decoration: BoxDecoration(
+                              color: secondarySurface,
+                              borderRadius:
+                                  BorderRadius.circular(AppRadius.md),
+                            ),
+                            child: Text(
+                              'Chưa có khoản chia chung nào. Gõ tên món + số tiền ở trên (VD: "tiền điện 350k") hoặc bật chip "Chia phòng" ở Tab AI Trợ Lý.',
+                              textAlign: TextAlign.center,
+                              style: TextStyle(
+                                fontSize: 12,
+                                fontWeight: FontWeight.w600,
+                                color: textSecondary,
+                              ),
+                            ),
+                          )
+                        else
+                          // Interactive Split Items List (Overflow-safe with Wrap)
+                          ...botState.splitItems.map((item) {
                           final perPerson = item.assignedRoommates.isEmpty
                               ? 0
                               : (item.totalAmountVnd /
@@ -837,7 +860,7 @@ class _SplitVietQrScreenState extends ConsumerState<SplitVietQrScreen> {
             SizedBox(
               height: 54,
               child: FilledButton.icon(
-                onPressed: botState.isWebhookListening
+                onPressed: (botState.isWebhookListening || roommateOwedAmount <= 0)
                     ? null
                     : () => _launchVietQrDeepLink(
                           context,
@@ -864,9 +887,11 @@ class _SplitVietQrScreenState extends ConsumerState<SplitVietQrScreen> {
                 label: Text(
                   botState.isWebhookListening
                       ? 'Webhook đang lắng nghe giao dịch...'
-                      : (isSelectedSettled
-                          ? '$activeRoommate đã gạch nợ thành công'
-                          : 'Mở App Ngân Hàng • ${HybridNlpService.formatVnd(roommateOwedAmount)}'),
+                      : (roommateOwedAmount <= 0
+                          ? 'Không có dư nợ cần thu cho $activeRoommate'
+                          : (isSelectedSettled
+                              ? '$activeRoommate đã gạch nợ thành công'
+                              : 'Mở App Ngân Hàng • ${HybridNlpService.formatVnd(roommateOwedAmount)}')),
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                   style: const TextStyle(

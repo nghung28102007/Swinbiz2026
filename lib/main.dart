@@ -7,6 +7,7 @@ import 'providers/savage_bot_provider.dart';
 import 'screens/analytics_screen.dart';
 import 'screens/home_screen.dart';
 import 'screens/judge_pitch_sheet.dart';
+import 'screens/onboarding_screen.dart';
 import 'screens/split_vietqr_screen.dart';
 import 'services/vietqr_service.dart';
 import 'theme/app_tokens.dart';
@@ -63,8 +64,10 @@ class SavageBotApp extends ConsumerWidget {
       theme: lightTheme,
       darkTheme: darkTheme,
       themeMode: botState.isDarkMode ? ThemeMode.dark : ThemeMode.light,
-      home: const ResponsiveMobileFrame(
-        child: MainNavigationShell(),
+      home: ResponsiveMobileFrame(
+        child: botState.hasCompletedOnboarding
+            ? const MainNavigationShell()
+            : const OnboardingScreen(),
       ),
     );
   }
@@ -308,13 +311,41 @@ class _MainNavigationShellState extends ConsumerState<MainNavigationShell> {
               size: 20,
             ),
           ),
-          IconButton(
-            onPressed: () {
-              HapticFeedback.lightImpact();
-              notifier.resetDemo();
-            },
-            tooltip: 'Khôi phục dữ liệu mẫu',
+          PopupMenuButton<String>(
+            tooltip: 'Khởi tạo lại ví / Demo',
             icon: const Icon(Icons.restart_alt_rounded, size: 20),
+            onSelected: (choice) {
+              HapticFeedback.lightImpact();
+              if (choice == 'fresh') {
+                notifier.startFreshUserReset();
+              } else if (choice == 'demo') {
+                notifier.resetDemo();
+              }
+            },
+            itemBuilder: (_) => const [
+              PopupMenuItem<String>(
+                value: 'fresh',
+                child: Row(
+                  children: [
+                    Icon(Icons.cleaning_services_rounded,
+                        size: 17, color: AppColors.emerald),
+                    SizedBox(width: 8),
+                    Text('Tạo lại Ví Trắng (User mới)'),
+                  ],
+                ),
+              ),
+              PopupMenuItem<String>(
+                value: 'demo',
+                child: Row(
+                  children: [
+                    Icon(Icons.play_circle_outline_rounded,
+                        size: 17, color: AppColors.violetLight),
+                    SizedBox(width: 8),
+                    Text('Nạp kịch bản Demo (Phòng 302)'),
+                  ],
+                ),
+              ),
+            ],
           ),
           const SizedBox(width: 4),
         ],

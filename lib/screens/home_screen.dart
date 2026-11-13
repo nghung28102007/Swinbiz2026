@@ -889,7 +889,65 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
                     ),
                     const Divider(height: 1),
                     Expanded(
-                      child: ListView.builder(
+                      child: botState.transactions.isEmpty
+                          ? Center(
+                              child: SingleChildScrollView(
+                                padding: const EdgeInsets.all(18),
+                                child: Container(
+                                  padding: const EdgeInsets.all(16),
+                                  decoration: BoxDecoration(
+                                    color: isDark
+                                        ? AppColors.darkElevatedSurface
+                                        : AppColors.lightSecondarySurface,
+                                    borderRadius:
+                                        BorderRadius.circular(AppRadius.lg),
+                                    border: Border.all(
+                                      color: (isSavage
+                                              ? AppColors.rose
+                                              : AppColors.emerald)
+                                          .withValues(alpha: 0.35),
+                                    ),
+                                  ),
+                                  child: Column(
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      Text(
+                                        isSavage
+                                            ? '🔥 Trợ lý Mỏ Hỗn đã sẵn sàng!'
+                                            : '🌱 Quân sư Tài chính đã sẵn sàng!',
+                                        textAlign: TextAlign.center,
+                                        style: TextStyle(
+                                          fontSize: 13.5,
+                                          fontWeight: FontWeight.w900,
+                                          color: textPrimary,
+                                        ),
+                                      ),
+                                      const SizedBox(height: 8),
+                                      Text(
+                                        botState.latestSpeechBubble,
+                                        textAlign: TextAlign.center,
+                                        style: TextStyle(
+                                          fontSize: 12.5,
+                                          height: 1.45,
+                                          color: textSecondary,
+                                        ),
+                                      ),
+                                      const SizedBox(height: 10),
+                                      const Text(
+                                        'Mẹo: Gõ tự nhiên ("bún bò 45k", "trà sữa năm mươi lăm nghìn"), bấm Mic để nói, hoặc chạm chip gợi ý bên dưới.',
+                                        textAlign: TextAlign.center,
+                                        style: TextStyle(
+                                          fontSize: 11,
+                                          fontWeight: FontWeight.w600,
+                                          color: AppColors.emerald,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              ),
+                            )
+                          : ListView.builder(
                         controller: _feedScrollController,
                         padding: const EdgeInsets.all(14),
                         physics: const BouncingScrollPhysics(),

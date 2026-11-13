@@ -177,6 +177,7 @@ class SavageBotState {
   final int tier2QueryCount;
   final double simulatedMau;
   final bool isDarkMode;
+  final bool hasCompletedOnboarding;
 
   const SavageBotState({
     required this.groupName,
@@ -201,6 +202,7 @@ class SavageBotState {
     required this.tier2QueryCount,
     required this.simulatedMau,
     required this.isDarkMode,
+    this.hasCompletedOnboarding = true,
   });
 
   bool isMemberSettled(String member) => settledByMember[member] ?? false;
@@ -219,7 +221,7 @@ class SavageBotState {
 
   double get tier1RatioPercent {
     final total = tier1QueryCount + tier2QueryCount;
-    if (total == 0) return 76.0;
+    if (total == 0) return 100.0;
     return (tier1QueryCount / total) * 100.0;
   }
 
@@ -271,6 +273,7 @@ class SavageBotState {
     int? tier2QueryCount,
     double? simulatedMau,
     bool? isDarkMode,
+    bool? hasCompletedOnboarding,
   }) {
     return SavageBotState(
       groupName: groupName ?? this.groupName,
@@ -296,6 +299,8 @@ class SavageBotState {
       tier2QueryCount: tier2QueryCount ?? this.tier2QueryCount,
       simulatedMau: simulatedMau ?? this.simulatedMau,
       isDarkMode: isDarkMode ?? this.isDarkMode,
+      hasCompletedOnboarding:
+          hasCompletedOnboarding ?? this.hasCompletedOnboarding,
     );
   }
 
@@ -322,6 +327,7 @@ class SavageBotState {
       'tier2QueryCount': tier2QueryCount,
       'simulatedMau': simulatedMau,
       'isDarkMode': isDarkMode,
+      'hasCompletedOnboarding': hasCompletedOnboarding,
     };
   }
 
@@ -331,7 +337,7 @@ class SavageBotState {
         .where((e) => e.trim().isNotEmpty)
         .toList();
     final members =
-        parsedMembers.isEmpty ? const ['Duy', 'Tuất', 'Hưng'] : parsedMembers;
+        parsedMembers.isEmpty ? const ['Bạn'] : parsedMembers;
 
     final settledRaw = json['settledByMember'] as Map<String, dynamic>? ?? {};
     final Map<String, bool> settled = {
@@ -346,17 +352,17 @@ class SavageBotState {
         json['treasurerName'] as String? ?? members.first;
 
     return SavageBotState(
-      groupName: json['groupName'] as String? ?? 'Phòng 302',
+      groupName: json['groupName'] as String? ?? 'Ví của tôi',
       members: members,
       treasurerName:
           members.contains(treasurerRaw) ? treasurerRaw : members.first,
       bankBin: json['bankBin'] as String? ?? '970422',
       bankAccount: json['bankAccount'] as String? ?? '0988882026',
-      monthlyBudget: (json['monthlyBudget'] as num?)?.toInt() ?? 4500000,
-      dailyBaseAllowance: (json['dailyBaseAllowance'] as num?)?.toInt() ?? 180000,
-      dailySafeToSpend: (json['dailySafeToSpend'] as num?)?.toInt() ?? 90000,
-      predictedRunwayDays: (json['predictedRunwayDays'] as num?)?.toInt() ?? 22,
-      noBobaStreakDays: (json['noBobaStreakDays'] as num?)?.toInt() ?? 5,
+      monthlyBudget: (json['monthlyBudget'] as num?)?.toInt() ?? 4000000,
+      dailyBaseAllowance: (json['dailyBaseAllowance'] as num?)?.toInt() ?? 160000,
+      dailySafeToSpend: (json['dailySafeToSpend'] as num?)?.toInt() ?? 160000,
+      predictedRunwayDays: (json['predictedRunwayDays'] as num?)?.toInt() ?? 30,
+      noBobaStreakDays: (json['noBobaStreakDays'] as num?)?.toInt() ?? 0,
       activePersona: PersonaMode.values.firstWhere(
         (m) => m.name == json['activePersona'],
         orElse: () => PersonaMode.savage,
@@ -374,26 +380,60 @@ class SavageBotState {
           members.contains(selectedQrRaw) ? selectedQrRaw : members.last,
       settledByMember: settled,
       isWebhookListening: false,
-      tier1QueryCount: (json['tier1QueryCount'] as num?)?.toInt() ?? 19,
-      tier2QueryCount: (json['tier2QueryCount'] as num?)?.toInt() ?? 6,
+      tier1QueryCount: (json['tier1QueryCount'] as num?)?.toInt() ?? 0,
+      tier2QueryCount: (json['tier2QueryCount'] as num?)?.toInt() ?? 0,
       simulatedMau: (json['simulatedMau'] as num?)?.toDouble() ?? 25000,
       isDarkMode: json['isDarkMode'] as bool? ?? true,
+      hasCompletedOnboarding: json['hasCompletedOnboarding'] as bool? ?? true,
     );
   }
 }
 
 class SavageBotNotifier extends StateNotifier<SavageBotState> {
-  static const String _storageKey = 'savage_bot_state_v2';
+  static const String _storageKey = 'savage_bot_state_v3';
   final bool enablePersistence;
 
-  SavageBotNotifier({this.enablePersistence = true})
-      : super(_buildInitialState()) {
+  SavageBotNotifier({
+    this.enablePersistence = true,
+    bool startWithDemo = false,
+  }) : super(
+          startWithDemo ? _buildDemoPresetState() : _buildFreshUserState(),
+        ) {
     if (enablePersistence) {
       _loadPersistedState();
     }
   }
 
-  static SavageBotState _buildInitialState() {
+  static SavageBotState _buildFreshUserState({bool isDarkMode = true}) {
+    return SavageBotState(
+      groupName: 'Ví của tôi',
+      members: const ['Bạn'],
+      treasurerName: 'Bạn',
+      bankBin: '970422',
+      bankAccount: '0988882026',
+      monthlyBudget: 4500000,
+      dailyBaseAllowance: 150000,
+      dailySafeToSpend: 150000,
+      predictedRunwayDays: 30,
+      noBobaStreakDays: 0,
+      activePersona: PersonaMode.savage,
+      activePayer: 'Bạn',
+      transactions: const [],
+      latestSpeechBubble:
+          'Ví trắng 100%! Nhập khoản chi đầu tiên (VD: "bún bò 45k") hoặc bấm Mic để SavageBot chấm điểm nhé! 🔥',
+      splitItems: const [],
+      selectedRoommateForQr: 'Bạn',
+      settledByMember: const {},
+      isWebhookListening: false,
+      tier1QueryCount: 0,
+      tier2QueryCount: 0,
+      simulatedMau: 25000,
+      isDarkMode: isDarkMode,
+      hasCompletedOnboarding: false,
+    );
+  }
+
+  static SavageBotState _buildDemoPresetState() {
     const String defaultGroup = 'Phòng 302';
     const List<String> defaultMembers = ['Duy', 'Tuất', 'Hưng'];
     const int initialMonthlyBudget = 4500000;
@@ -1036,8 +1076,76 @@ class SavageBotNotifier extends StateNotifier<SavageBotState> {
 
   void resetDemo() {
     final currentTheme = state.isDarkMode;
-    state = _buildInitialState().copyWith(isDarkMode: currentTheme);
+    state = _buildDemoPresetState().copyWith(
+      isDarkMode: currentTheme,
+      hasCompletedOnboarding: true,
+    );
     _persistState();
+  }
+
+  /// Creates a 100% blank wallet tailored for a brand-new user with 0 pre-filled expenses.
+  void completeNewUserOnboarding({
+    required String groupName,
+    required List<String> members,
+    required int monthlyBudget,
+    required PersonaMode activePersona,
+    String bankBin = '970422',
+    String bankAccount = '0988882026',
+  }) {
+    final cleanedMembers = members
+        .map((m) => m.trim())
+        .where((m) => m.isNotEmpty)
+        .toSet()
+        .toList();
+    final validMembers = cleanedMembers.isEmpty ? ['Bạn'] : cleanedMembers;
+    final validGroup = groupName.trim().isEmpty
+        ? (validMembers.length == 1 ? 'Ví ${validMembers.first}' : 'Nhóm mới')
+        : groupName.trim();
+    final validBudget = monthlyBudget.clamp(500000, 100000000);
+    final dailyBase = (validBudget / 30).round().clamp(20000, 10000000);
+    final qrTarget = validMembers.length > 1 ? validMembers[1] : validMembers.first;
+
+    state = SavageBotState(
+      groupName: validGroup,
+      members: validMembers,
+      treasurerName: validMembers.first,
+      bankBin: bankBin.trim().isEmpty ? '970422' : bankBin.trim(),
+      bankAccount: bankAccount.trim().isEmpty ? '0988882026' : bankAccount.trim(),
+      monthlyBudget: validBudget,
+      dailyBaseAllowance: dailyBase,
+      dailySafeToSpend: dailyBase,
+      predictedRunwayDays: 30,
+      noBobaStreakDays: 0,
+      activePersona: activePersona,
+      activePayer: validMembers.first,
+      transactions: const [],
+      latestSpeechBubble: activePersona == PersonaMode.savage
+          ? 'Chào ${validMembers.first}! Ví mới ${HybridNlpService.formatVnd(validBudget)}/tháng đã sẵn sàng. Gõ thử khoản chi đầu tiên đi, đừng để tớ phải "khịa" ngay ngày đầu! 🔥'
+          : 'Chào mừng ${validMembers.first}! Ngân sách ${HybridNlpService.formatVnd(validBudget)}/tháng đã được thiết lập (hạn mức ${HybridNlpService.formatVnd(dailyBase)}/ngày). Hãy ghi khoản chi đầu tiên nhé! 🌱',
+      splitItems: const [],
+      selectedRoommateForQr: qrTarget,
+      settledByMember: const {},
+      isWebhookListening: false,
+      tier1QueryCount: 0,
+      tier2QueryCount: 0,
+      simulatedMau: 25000,
+      isDarkMode: state.isDarkMode,
+      hasCompletedOnboarding: true,
+    );
+    _persistState();
+  }
+
+  /// Clears saved wallet and returns to the brand-new user onboarding setup.
+  Future<void> startFreshUserReset() async {
+    final currentTheme = state.isDarkMode;
+    state = _buildFreshUserState(isDarkMode: currentTheme);
+    if (!enablePersistence) return;
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.remove(_storageKey);
+    } catch (_) {
+      // Ignore storage clear errors
+    }
   }
 }
 

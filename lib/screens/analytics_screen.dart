@@ -156,7 +156,8 @@ class _AnalyticsScreenState extends ConsumerState<AnalyticsScreen> {
                         minX: 1,
                         maxX: 30,
                         minY: 0,
-                        maxY: maxBudgetM * 1.08,
+                        maxY: maxBudgetM,
+                        clipData: const FlClipData.none(),
                         gridData: FlGridData(
                           show: true,
                           drawVerticalLine: false,
@@ -294,7 +295,20 @@ class _AnalyticsScreenState extends ConsumerState<AnalyticsScreen> {
                     ),
                   ),
                   const SizedBox(height: 12),
-                  ...ExpenseCategory.values.map((cat) {
+                  if (botState.totalSpentThisMonth == 0)
+                    Padding(
+                      padding: const EdgeInsets.symmetric(vertical: 12),
+                      child: Text(
+                        'Chưa có dữ liệu chi tiêu tháng này. Ghi khoản đầu tiên ở Tab AI Trợ Lý để xem biểu đồ phân bổ nhé!',
+                        style: TextStyle(
+                          fontSize: 12,
+                          fontWeight: FontWeight.w600,
+                          color: textSecondary,
+                        ),
+                      ),
+                    )
+                  else
+                    ...ExpenseCategory.values.map((cat) {
                     final amount = categoryTotals[cat] ?? 0;
                     if (amount == 0) return const SizedBox.shrink();
                     final pct = (amount / totalSpent).clamp(0.0, 1.0);
@@ -402,7 +416,45 @@ class _AnalyticsScreenState extends ConsumerState<AnalyticsScreen> {
               ],
             ),
             const SizedBox(height: 10),
-            ...filteredTransactions.reversed.map((tx) {
+            if (filteredTransactions.isEmpty)
+              Container(
+                padding: const EdgeInsets.all(20),
+                decoration: BoxDecoration(
+                  color: cardSurface,
+                  borderRadius: BorderRadius.circular(AppRadius.lg),
+                  border: Border.all(color: borderColor),
+                ),
+                child: Column(
+                  children: [
+                    Icon(
+                      Icons.receipt_long_rounded,
+                      size: 30,
+                      color: textSecondary.withValues(alpha: 0.7),
+                    ),
+                    const SizedBox(height: 8),
+                    Text(
+                      'Chưa có giao dịch nào',
+                      style: TextStyle(
+                        fontSize: 13.5,
+                        fontWeight: FontWeight.w800,
+                        color: textPrimary,
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      'Mọi khoản bạn ghi bằng text, giọng nói hoặc quét bill sẽ tự động hiện tại đây.',
+                      textAlign: TextAlign.center,
+                      style: TextStyle(
+                        fontSize: 11.5,
+                        fontWeight: FontWeight.w500,
+                        color: textSecondary,
+                      ),
+                    ),
+                  ],
+                ),
+              )
+            else
+              ...filteredTransactions.reversed.map((tx) {
               final timeText = DateFormat('HH:mm').format(tx.timestamp);
               return Padding(
                 padding: const EdgeInsets.only(bottom: 10),

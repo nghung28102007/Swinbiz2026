@@ -109,8 +109,33 @@ void main() {
   });
 
   group('SavageBotNotifier financial & closed-loop guarantees', () {
-    test('deducts full personal expense and exact 1/N share for split bills', () {
+    test('fresh user starts unboarded with zero demo data', () {
       final notifier = SavageBotNotifier(enablePersistence: false);
+      expect(notifier.state.hasCompletedOnboarding, isFalse);
+      expect(notifier.state.transactions, isEmpty);
+      expect(notifier.state.splitItems, isEmpty);
+      expect(notifier.state.tier1QueryCount, 0);
+      expect(notifier.state.tier2QueryCount, 0);
+
+      notifier.completeNewUserOnboarding(
+        groupName: 'Ví Hùng',
+        members: const ['Hùng'],
+        monthlyBudget: 3000000,
+        activePersona: PersonaMode.coach,
+      );
+
+      expect(notifier.state.hasCompletedOnboarding, isTrue);
+      expect(notifier.state.groupName, 'Ví Hùng');
+      expect(notifier.state.members, const ['Hùng']);
+      expect(notifier.state.transactions, isEmpty);
+      expect(notifier.state.splitItems, isEmpty);
+      expect(notifier.state.dailySafeToSpend, 100000);
+      expect(notifier.state.predictedRunwayDays, 30);
+    });
+
+    test('deducts full personal expense and exact 1/N share for split bills', () {
+      final notifier =
+          SavageBotNotifier(enablePersistence: false, startWithDemo: true);
       final initialDaily = notifier.state.dailySafeToSpend;
       final initialSplitCount = notifier.state.splitItems.length;
 
@@ -130,7 +155,8 @@ void main() {
     });
 
     test('enforces idempotent per-member VietQR settlement', () async {
-      final notifier = SavageBotNotifier(enablePersistence: false);
+      final notifier =
+          SavageBotNotifier(enablePersistence: false, startWithDemo: true);
       final initialDaily = notifier.state.dailySafeToSpend;
       final tuatShare = notifier.state.shareForRoommate('Tuất');
 
@@ -156,7 +182,8 @@ void main() {
     });
 
     test('OCR batch scan increments tier2QueryCount only', () {
-      final notifier = SavageBotNotifier(enablePersistence: false);
+      final notifier =
+          SavageBotNotifier(enablePersistence: false, startWithDemo: true);
       final initialTier1 = notifier.state.tier1QueryCount;
       final initialTier2 = notifier.state.tier2QueryCount;
       final initialSplits = notifier.state.splitItems.length;
