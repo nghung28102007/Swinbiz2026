@@ -1,0 +1,27 @@
+name: savage_bot
+description: "SavageBot - Gen Z Behavioral Finance & Closed-Loop VietQR Co-Pilot (Swin-Biz Rockstar 2026 - Season 6)"
+publish_to: 'none'
+version: 1.0.0+1
+
+environment:
+  sdk: '>=3.2.0 <4.0.0'
+
+dependencies:
+  flutter:
+    sdk: flutter
+  flutter_riverpod: ^2.5.1
+  google_fonts: ^6.2.1
+  qr_flutter: ^4.1.0
+  url_launcher: ^6.3.0
+  intl: ^0.19.0
+  shared_preferences: ^2.2.3
+  fl_chart: ^0.68.0
+  speech_to_text: ^7.5.0
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^3.0.2
+
+flutter:
+  uses-material-design: true
