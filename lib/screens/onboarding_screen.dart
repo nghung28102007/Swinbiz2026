@@ -110,7 +110,7 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
       body: SafeArea(
         child: SingleChildScrollView(
           physics: const BouncingScrollPhysics(),
-          padding: const EdgeInsets.fromLTRB(18, 12, 18, 24),
+          padding: const EdgeInsets.fromLTRB(18, 8, 18, 16),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
@@ -118,8 +118,8 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
               Row(
                 children: [
                   Container(
-                    width: 40,
-                    height: 40,
+                    width: 38,
+                    height: 38,
                     decoration: BoxDecoration(
                       gradient: const LinearGradient(
                         colors: [AppColors.emerald, AppColors.violet],
@@ -135,7 +135,7 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
                     child: const Icon(
                       Icons.smart_toy_rounded,
                       color: Colors.white,
-                      size: 22,
+                      size: 20,
                     ),
                   ),
                   const SizedBox(width: 10),
@@ -146,7 +146,7 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
                         Text(
                           'SAVAGEBOT',
                           style: TextStyle(
-                            fontSize: 16,
+                            fontSize: 15.5,
                             fontWeight: FontWeight.w900,
                             letterSpacing: 0.4,
                             color: textPrimary,
@@ -178,11 +178,11 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
                   ),
                 ],
               ),
-              const SizedBox(height: 16),
+              const SizedBox(height: 12),
 
               // Main Setup Card
               Container(
-                padding: const EdgeInsets.all(18),
+                padding: const EdgeInsets.all(15),
                 decoration: BoxDecoration(
                   color: surface,
                   borderRadius: BorderRadius.circular(AppRadius.xl),
@@ -199,7 +199,7 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
                         color: textPrimary,
                       ),
                     ),
-                    const SizedBox(height: 10),
+                    const SizedBox(height: 8),
                     Row(
                       children: [
                         Expanded(
@@ -229,12 +229,13 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
                         ),
                       ],
                     ),
-                    const SizedBox(height: 16),
+                    const SizedBox(height: 12),
 
                     if (!_isGroupMode) ...[
                       TextField(
                         controller: _nameController,
                         decoration: InputDecoration(
+                          isDense: true,
                           labelText: 'Tên hoặc biệt danh của bạn',
                           hintText: 'VD: Hùng, Minh Anh...',
                           filled: true,
@@ -248,6 +249,7 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
                       TextField(
                         controller: _groupNameController,
                         decoration: InputDecoration(
+                          isDense: true,
                           labelText: 'Tên nhóm / Phòng trọ',
                           hintText: 'VD: Phòng 402, Team Swinbiz...',
                           filled: true,
@@ -257,10 +259,11 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
                           ),
                         ),
                       ),
-                      const SizedBox(height: 12),
+                      const SizedBox(height: 10),
                       TextField(
                         controller: _membersController,
                         decoration: InputDecoration(
+                          isDense: true,
                           labelText: 'Thành viên (cách nhau dấu phẩy)',
                           hintText: 'VD: Hùng, Nam, Linh',
                           helperText: 'Người đầu tiên là Thủ quỹ nhận QR',
@@ -273,12 +276,13 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
                       ),
                     ],
 
-                    const SizedBox(height: 14),
+                    const SizedBox(height: 10),
                     TextField(
                       controller: _budgetController,
                       keyboardType: TextInputType.number,
                       onChanged: (_) => setState(() {}),
                       decoration: InputDecoration(
+                        isDense: true,
                         labelText: 'Ngân sách tháng này (VND)',
                         helperText:
                             'Hạn mức an toàn: ~${HybridNlpService.formatVnd(dailyAllowance)}/ngày',
@@ -289,10 +293,10 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
                         ),
                       ),
                     ),
-                    const SizedBox(height: 8),
+                    const SizedBox(height: 6),
                     Wrap(
                       spacing: 8,
-                      runSpacing: 6,
+                      runSpacing: 4,
                       children: [
                         for (final preset in const [
                           (label: '3 triệu', val: '3000000'),
@@ -318,10 +322,12 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
                     ),
 
                     if (_isGroupMode) ...[
-                      const SizedBox(height: 14),
+                      const SizedBox(height: 10),
                       DropdownButtonFormField<String>(
                         initialValue: _selectedBankBin,
+                        isExpanded: true,
                         decoration: InputDecoration(
+                          isDense: true,
                           labelText: 'Ngân hàng nhận chia tiền VietQR',
                           filled: true,
                           fillColor: secondarySurface,
@@ -333,7 +339,10 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
                             .map(
                               (bank) => DropdownMenuItem<String>(
                                 value: bank.bin,
-                                child: Text('${bank.shortName} • ${bank.fullName}'),
+                                child: Text(
+                                  '${bank.shortName} • ${bank.fullName}',
+                                  overflow: TextOverflow.ellipsis,
+                                ),
                               ),
                             )
                             .toList(),
@@ -343,11 +352,12 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
                           }
                         },
                       ),
-                      const SizedBox(height: 12),
+                      const SizedBox(height: 10),
                       TextField(
                         controller: _bankAccountController,
                         keyboardType: TextInputType.number,
                         decoration: InputDecoration(
+                          isDense: true,
                           labelText: 'Số tài khoản (tuỳ chọn)',
                           hintText: 'Nhập STK thật để quét QR hoặc để trống',
                           filled: true,
@@ -359,7 +369,7 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
                       ),
                     ],
 
-                    const SizedBox(height: 16),
+                    const SizedBox(height: 12),
                     Text(
                       'Chọn giọng điệu AI đồng hành',
                       style: TextStyle(
@@ -368,7 +378,7 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
                         color: textPrimary,
                       ),
                     ),
-                    const SizedBox(height: 8),
+                    const SizedBox(height: 6),
                     Row(
                       children: [
                         Expanded(
@@ -403,7 +413,7 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
                   ],
                 ),
               ),
-              const SizedBox(height: 16),
+              const SizedBox(height: 12),
 
               // Primary CTA: Start Blank Real User Wallet
               FilledButton.icon(
@@ -411,7 +421,7 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
                 style: FilledButton.styleFrom(
                   backgroundColor: AppColors.emerald,
                   foregroundColor: AppColors.darkScaffold,
-                  padding: const EdgeInsets.symmetric(vertical: 15),
+                  padding: const EdgeInsets.symmetric(vertical: 14),
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(AppRadius.lg),
                   ),
@@ -422,7 +432,7 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
                   style: TextStyle(fontSize: 14.5, fontWeight: FontWeight.w900),
                 ),
               ),
-              const SizedBox(height: 10),
+              const SizedBox(height: 6),
 
               // Secondary CTA: Load Hackathon Pitch Preset anytime
               TextButton.icon(

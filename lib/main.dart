@@ -315,13 +315,17 @@ class _MainNavigationShellState extends ConsumerState<MainNavigationShell> {
                   children: [
                     Row(
                       children: [
-                        Text(
-                          'SAVAGEBOT',
-                          style: TextStyle(
-                            fontSize: 15,
-                            fontWeight: FontWeight.w900,
-                            letterSpacing: 0.4,
-                            color: AppColors.textPrimary(isDark),
+                        Flexible(
+                          child: Text(
+                            'SAVAGEBOT',
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: TextStyle(
+                              fontSize: 15,
+                              fontWeight: FontWeight.w900,
+                              letterSpacing: 0.4,
+                              color: AppColors.textPrimary(isDark),
+                            ),
                           ),
                         ),
                         const SizedBox(width: 6),
@@ -769,6 +773,7 @@ class _GroupSettingsSheetState extends ConsumerState<_GroupSettingsSheet> {
                         .any((b) => b.bin == _bankBin)
                     ? _bankBin
                     : VietQrService.supportedBanks.first.bin,
+                isExpanded: true,
                 dropdownColor: bgColor,
                 decoration: InputDecoration(
                   labelText: 'Ngân hàng nhận VietQR ($_treasurerName)',

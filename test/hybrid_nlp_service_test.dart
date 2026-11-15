@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:google_fonts/google_fonts.dart';
 import 'package:savage_bot/main.dart';
 import 'package:savage_bot/providers/savage_bot_provider.dart';
 import 'package:savage_bot/services/hybrid_nlp_service.dart';
@@ -327,6 +329,66 @@ void main() {
       await tester.pumpAndSettle();
       expect(tester.takeException(), isNull);
       expect(find.text('Viewport OK'), findsOneWidget);
+    });
+
+    testWidgets(
+        'Full SavageBotApp E2E flow: Onboarding -> Main Shell -> Tabs -> Viewport Resize -> Edit Dialog without exceptions',
+        (tester) async {
+      GoogleFonts.config.allowRuntimeFetching = false;
+      await tester.binding.setSurfaceSize(const Size(1280, 800));
+      addTearDown(() => tester.binding.setSurfaceSize(null));
+
+      await tester.pumpWidget(
+        ProviderScope(
+          overrides: [
+            savageBotProvider.overrideWith(
+              (ref) => SavageBotNotifier(
+                enablePersistence: false,
+                startWithDemo: false,
+              ),
+            ),
+          ],
+          child: const SavageBotApp(),
+        ),
+      );
+      await tester.pump();
+      expect(tester.takeException(), isNull);
+
+      // 1. Resize while on OnboardingScreen (1280x800 -> 390x844)
+      await tester.binding.setSurfaceSize(const Size(390, 844));
+      await tester.pump();
+      expect(tester.takeException(), isNull);
+
+      // 2. Load Demo scenario to enter MainNavigationShell
+      final demoBtn = find.textContaining('Demo Phòng 302');
+      expect(demoBtn, findsOneWidget);
+      await tester.ensureVisible(demoBtn);
+      await tester.pump();
+      await tester.tap(demoBtn);
+      await tester.pump(const Duration(milliseconds: 300));
+      expect(tester.takeException(), isNull);
+
+      // 3. Resize while inside MainNavigationShell (390x844 -> 1280x800 -> 360x580 -> 390x844)
+      await tester.binding.setSurfaceSize(const Size(1280, 800));
+      await tester.pump(const Duration(milliseconds: 200));
+      expect(tester.takeException(), isNull);
+
+      await tester.binding.setSurfaceSize(const Size(360, 580));
+      await tester.pump(const Duration(milliseconds: 200));
+      expect(tester.takeException(), isNull);
+
+      await tester.binding.setSurfaceSize(const Size(390, 844));
+      await tester.pump(const Duration(milliseconds: 200));
+      expect(tester.takeException(), isNull);
+
+      // 4. Switch to Tab 2 (Chia Tiền QR) and Tab 3 (Phân Tích Ví)
+      await tester.tap(find.text('Chia Tiền QR'));
+      await tester.pump(const Duration(milliseconds: 250));
+      expect(tester.takeException(), isNull);
+
+      await tester.tap(find.text('Phân Tích Ví'));
+      await tester.pump(const Duration(milliseconds: 250));
+      expect(tester.takeException(), isNull);
     });
   });
 }

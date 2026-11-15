@@ -516,7 +516,8 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
     final notifier = ref.read(savageBotProvider.notifier);
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final isSavage = botState.activePersona == PersonaMode.savage;
-    final bool isKeyboardOpen = MediaQuery.viewInsetsOf(context).bottom > 100;
+    final bool isKeyboardOpen = MediaQuery.viewInsetsOf(context).bottom > 100 ||
+        MediaQuery.sizeOf(context).height < 640;
 
     final Color surfaceColor = AppColors.surface(isDark);
     final Color secondarySurface = AppColors.secondarySurface(isDark);
@@ -1173,8 +1174,12 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
                                         crossAxisAlignment:
                                             CrossAxisAlignment.end,
                                         children: [
-                                          Row(
-                                            mainAxisSize: MainAxisSize.min,
+                                          Wrap(
+                                            spacing: 6,
+                                            runSpacing: 4,
+                                            alignment: WrapAlignment.end,
+                                            crossAxisAlignment:
+                                                WrapCrossAlignment.center,
                                             children: [
                                               Container(
                                                 padding:
@@ -1197,7 +1202,6 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
                                                   ),
                                                 ),
                                               ),
-                                              const SizedBox(width: 6),
                                               Text(
                                                 '${tx.payerName} • $timeLabel',
                                                 style: TextStyle(
