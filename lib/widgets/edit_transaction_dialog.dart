@@ -156,7 +156,7 @@ class _EditTransactionDialogState extends State<_EditTransactionDialog> {
                 return DropdownMenuItem(
                   value: cat,
                   child: Text(
-                    '${cat.emoji} ${cat.labelVi}',
+                    cat.labelVi,
                     overflow: TextOverflow.ellipsis,
                     style: TextStyle(
                       fontSize: 13,

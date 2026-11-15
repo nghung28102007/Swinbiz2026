@@ -458,7 +458,7 @@ class SavageBotNotifier extends StateNotifier<SavageBotState> {
       activePayer: 'Bạn',
       transactions: const [],
       latestSpeechBubble:
-          'Ví trắng 100%! Nhập khoản chi đầu tiên (VD: "bún bò 45k") hoặc bấm Mic để SavageBot chấm điểm nhé! 🔥',
+          'Ví trắng 100%! Nhập khoản chi đầu tiên (VD: "bún bò 45k") hoặc bấm Mic để SavageBot chấm điểm nhé.',
       splitItems: const [],
       selectedRoommateForQr: 'Bạn',
       settledByMember: const {},
@@ -489,9 +489,9 @@ class SavageBotNotifier extends StateNotifier<SavageBotState> {
         routeTier: NlpRouteTier.tier1LocalRegex,
         latencyMs: 1.1,
         savageRoast:
-            'Duy làm đĩa cơm sườn 35k là chuẩn bài sinh viên gương mẫu rồi, đừng tráng miệng thêm ly trà sữa 60k là được! 🍛👏',
+            'Duy làm đĩa cơm sườn 35k là chuẩn bài sinh viên gương mẫu rồi, đừng tráng miệng thêm ly trà sữa 60k là được!',
         coachAdvice:
-            'Bữa trưa 35.000đ của Duy nằm gọn trong khung an toàn. Giữ nhịp này giúp bạn dư 450.000đ cuối tháng! 🌱',
+            'Bữa trưa 35.000đ của Duy nằm gọn trong khung an toàn. Giữ nhịp này giúp bạn dư 450.000đ cuối tháng.',
       ),
       ExpenseTransaction(
         id: 'tx-tuat-2',
@@ -504,9 +504,9 @@ class SavageBotNotifier extends StateNotifier<SavageBotState> {
         routeTier: NlpRouteTier.tier1LocalRegex,
         latencyMs: 1.3,
         savageRoast:
-            'Tuất lại cúng 55k cho Phê La! Ly thứ 4 trong tuần rồi đó chiến thần đường huyết, cuối tháng ăn mì Hảo Hảo đừng kêu cứu! 🧋💀',
+            'Tuất lại cúng 55k cho Phê La! Ly thứ 4 trong tuần rồi đó chiến thần đường huyết, cuối tháng ăn mì Hảo Hảo đừng kêu cứu!',
         coachAdvice:
-            'Tuất vừa chi 55.000đ cho đồ uống. Gợi ý: Tự pha trà túi lọc 2 buổi/tuần giúp tiết kiệm ngay 110.000đ! ✨',
+            'Tuất vừa chi 55.000đ cho đồ uống. Gợi ý: Tự pha trà túi lọc 2 buổi/tuần giúp tiết kiệm ngay 110.000đ.',
       ),
       ExpenseTransaction(
         id: 'tx-hung-3',
@@ -520,28 +520,28 @@ class SavageBotNotifier extends StateNotifier<SavageBotState> {
         latencyMs: 1.5,
         isSettled: false,
         savageRoast:
-            'Bay nhẹ 350k tiền điện Wifi! Mấy anh em bật điều hòa 18 độ cày rank xuyên đêm cho cố vào! ⚡💸',
+            'Bay nhẹ 350k tiền điện Wifi! Mấy anh em bật điều hòa 18 độ cày rank xuyên đêm cho cố vào!',
         coachAdvice:
-            'Khoản chi chung 350.000đ của Phòng 302 đã ghi nhận. Hãy qua tab "Chia tiền QR" để gạch nợ tự động cho các thành viên. 🤝',
+            'Khoản chi chung 350.000đ của Phòng 302 đã ghi nhận. Hãy qua tab "Chia tiền QR" để gạch nợ tự động cho các thành viên.',
       ),
     ];
 
     const List<RoommateSplitItem> defaultSplitItems = [
       RoommateSplitItem(
         id: 'split-1',
-        title: '⚡ Tiền điện & Nước Phòng 302',
+        title: 'Tiền điện & Nước Phòng 302',
         totalAmountVnd: 660000,
         assignedRoommates: ['Duy', 'Tuất', 'Hưng'],
       ),
       RoommateSplitItem(
         id: 'split-2',
-        title: '🌐 Cáp quang Wifi Viettel Mesh',
+        title: 'Cáp quang Wifi Viettel Mesh',
         totalAmountVnd: 240000,
         assignedRoommates: ['Duy', 'Tuất', 'Hưng'],
       ),
       RoommateSplitItem(
         id: 'split-3',
-        title: '🍲 Lẩu bò tự sôi đêm chạy deadline',
+        title: 'Lẩu bò tự sôi đêm chạy deadline',
         totalAmountVnd: 300000,
         assignedRoommates: ['Duy', 'Tuất'],
       ),
@@ -702,7 +702,7 @@ class SavageBotNotifier extends StateNotifier<SavageBotState> {
     if (isSharedRoomExpense && splitId != null) {
       final newSplit = RoommateSplitItem(
         id: splitId,
-        title: '${parsed.category.emoji} ${parsed.itemTitle}',
+        title: parsed.itemTitle,
         totalAmountVnd: parsed.amountVnd,
         assignedRoommates: List<String>.from(state.members),
       );
@@ -729,7 +729,62 @@ class SavageBotNotifier extends StateNotifier<SavageBotState> {
           : state.tier2QueryCount,
     );
     _persistState();
+
+    if (enablePersistence) {
+      _upgradeTransactionWithLiveAi(
+        txId: newTx.id,
+        itemTitle: parsed.itemTitle,
+        amountVnd: parsed.amountVnd,
+        category: parsed.category,
+        remainingDailySafeVnd: updatedSafeToday,
+        predictedRunwayDays: updatedRunwayDays,
+        payerName: payer,
+      );
+    }
+
     return true;
+  }
+
+  Future<void> _upgradeTransactionWithLiveAi({
+    required String txId,
+    required String itemTitle,
+    required int amountVnd,
+    required ExpenseCategory category,
+    required int remainingDailySafeVnd,
+    required int predictedRunwayDays,
+    required String payerName,
+  }) async {
+    final liveResult = await HybridNlpService.fetchLiveAiResponses(
+      itemTitle: itemTitle,
+      amountVnd: amountVnd,
+      category: category,
+      remainingDailySafeVnd: remainingDailySafeVnd,
+      predictedRunwayDays: predictedRunwayDays,
+      payerName: payerName,
+    );
+    if (liveResult == null || !mounted) return;
+
+    final idx = state.transactions.indexWhere((t) => t.id == txId);
+    if (idx == -1) return;
+
+    final updatedList = List<ExpenseTransaction>.from(state.transactions);
+    updatedList[idx] = updatedList[idx].copyWith(
+      savageRoast: liveResult.savage,
+      coachAdvice: liveResult.coach,
+    );
+
+    final bool isLatest = idx == updatedList.length - 1;
+    final String updatedBubble = isLatest
+        ? (state.activePersona == PersonaMode.savage
+            ? liveResult.savage
+            : liveResult.coach)
+        : state.latestSpeechBubble;
+
+    state = state.copyWith(
+      transactions: updatedList,
+      latestSpeechBubble: updatedBubble,
+    );
+    _persistState();
   }
 
   /// Adds OCR-extracted items from a receipt scan under Tier-2 telemetry only.
@@ -806,7 +861,7 @@ class SavageBotNotifier extends StateNotifier<SavageBotState> {
         addedSplits.add(
           RoommateSplitItem(
             id: splitId,
-            title: '${item.category.emoji} ${item.title}',
+            title: item.title,
             totalAmountVnd: item.amount,
             assignedRoommates: List<String>.from(state.members),
           ),
@@ -821,9 +876,9 @@ class SavageBotNotifier extends StateNotifier<SavageBotState> {
     final String formattedTotal = HybridNlpService.formatVnd(template.totalVnd);
 
     final String summaryRoast =
-        'Quét 1 tờ bill ${template.label} ra liền ${template.items.length} món ($formattedTotal)! Vision AI bắt bài không trượt phát nào! 🧾🔥';
+        'Quét 1 tờ bill ${template.label} ra liền ${template.items.length} món ($formattedTotal)! Vision AI bắt bài không trượt phát nào!';
     final String summaryCoach =
-        'Vision OCR đã bóc tách tự động ${template.items.length} món từ hóa đơn ${template.label} ($formattedTotal) trong 0.6s. Tiết kiệm 45 giây nhập tay! 🧾✨';
+        'Vision OCR đã bóc tách tự động ${template.items.length} món từ hóa đơn ${template.label} ($formattedTotal) trong 0.6s. Tiết kiệm 45 giây nhập tay.';
 
     state = state.copyWith(
       transactions: [...state.transactions, ...ocrTransactions],
@@ -903,7 +958,7 @@ class SavageBotNotifier extends StateNotifier<SavageBotState> {
       updatedSplits = state.splitItems.map((item) {
         if (item.id != splitId) return item;
         return item.copyWith(
-          title: '${category.emoji} ${title.trim()}',
+          title: title.trim(),
           totalAmountVnd: amountVnd,
         );
       }).toList();
@@ -1026,7 +1081,7 @@ class SavageBotNotifier extends StateNotifier<SavageBotState> {
         ? (state.activePersona == PersonaMode.savage
             ? updatedList.last.savageRoast
             : updatedList.last.coachAdvice)
-        : 'Ví đang sạch bóng 0đ chi tiêu! Gõ món đầu tiên để mình thẩm định nhé! ✨';
+        : 'Ví đang sạch bóng 0đ chi tiêu! Gõ món đầu tiên để mình thẩm định nhé.';
 
     state = state.copyWith(
       transactions: updatedList,
@@ -1178,8 +1233,8 @@ class SavageBotNotifier extends StateNotifier<SavageBotState> {
         predictedRunwayDays: boostedRunway,
         transactions: updatedTransactions,
         latestSpeechBubble: state.activePersona == PersonaMode.savage
-            ? 'Ting ting! Đã chốt gạch nợ ${HybridNlpService.formatVnd(shareAmount)} cho $member (mã $memo)! Ví hồi máu cực mạnh! 🎉💸'
-            : 'Đã đánh dấu hoàn tất khoản ${HybridNlpService.formatVnd(shareAmount)} của $member (mã $memo). ✅',
+            ? 'Ting ting! Đã chốt gạch nợ ${HybridNlpService.formatVnd(shareAmount)} cho $member (mã $memo)! Ví hồi máu cực mạnh!'
+            : 'Đã đánh dấu hoàn tất khoản ${HybridNlpService.formatVnd(shareAmount)} của $member (mã $memo).',
       );
     } else {
       final int revertedSafe = (state.dailySafeToSpend - shareAmount)
@@ -1191,7 +1246,7 @@ class SavageBotNotifier extends StateNotifier<SavageBotState> {
         dailySafeToSpend: revertedSafe,
         predictedRunwayDays: revertedRunway,
         latestSpeechBubble:
-            'Đã đặt lại trạng thái của $member về "Chờ trả" (${HybridNlpService.formatVnd(shareAmount)}). 🔄',
+            'Đã đặt lại trạng thái của $member về "Chờ trả" (${HybridNlpService.formatVnd(shareAmount)}).',
       );
     }
     _persistState();
@@ -1220,8 +1275,8 @@ class SavageBotNotifier extends StateNotifier<SavageBotState> {
       state = state.copyWith(
         isWebhookListening: false,
         latestSpeechBubble: state.activePersona == PersonaMode.savage
-            ? '$targetMember đã gạch nợ mã $memo rồi! Không cần đòi lại lần 2 đâu nhé! ✅'
-            : 'Khoản của $targetMember (mã $memo) đã được đối soát trước đó rồi. ✅',
+            ? '$targetMember đã gạch nợ mã $memo rồi! Không cần đòi lại lần 2 đâu nhé!'
+            : 'Khoản của $targetMember (mã $memo) đã được đối soát trước đó rồi.',
       );
       _persistState();
       return;
@@ -1248,8 +1303,8 @@ class SavageBotNotifier extends StateNotifier<SavageBotState> {
       predictedRunwayDays: boostedRunway,
       transactions: updatedTransactions,
       latestSpeechBubble: state.activePersona == PersonaMode.savage
-          ? 'Ting ting! $targetMember vừa chuyển khoản ${HybridNlpService.formatVnd(reimbursedAmount)} mã $memo! Hồi máu thành công, khỏi phải đòi nợ thuê! 🎉💸'
-          : 'Tuyệt vời! Đã gạch nợ tự động ${HybridNlpService.formatVnd(reimbursedAmount)} từ $targetMember (mã $memo). Quỹ sinh tồn vừa tăng thêm 2 ngày! 🌱✅',
+          ? 'Ting ting! $targetMember vừa chuyển khoản ${HybridNlpService.formatVnd(reimbursedAmount)} mã $memo! Hồi máu thành công, khỏi phải đòi nợ thuê!'
+          : 'Tuyệt vời! Đã gạch nợ tự động ${HybridNlpService.formatVnd(reimbursedAmount)} từ $targetMember (mã $memo). Quỹ sinh tồn vừa tăng thêm 2 ngày.',
     );
     _persistState();
   }
@@ -1380,8 +1435,8 @@ class SavageBotNotifier extends StateNotifier<SavageBotState> {
       activePayer: validMembers.first,
       transactions: const [],
       latestSpeechBubble: activePersona == PersonaMode.savage
-          ? 'Chào ${validMembers.first}! Ví mới ${HybridNlpService.formatVnd(validBudget)}/tháng đã sẵn sàng. Gõ thử khoản chi đầu tiên đi, đừng để tớ phải "khịa" ngay ngày đầu! 🔥'
-          : 'Chào mừng ${validMembers.first}! Ngân sách ${HybridNlpService.formatVnd(validBudget)}/tháng đã được thiết lập (hạn mức ${HybridNlpService.formatVnd(dailyBase)}/ngày). Hãy ghi khoản chi đầu tiên nhé! 🌱',
+          ? 'Chào ${validMembers.first}! Ví mới ${HybridNlpService.formatVnd(validBudget)}/tháng đã sẵn sàng. Gõ thử khoản chi đầu tiên đi, đừng để tớ phải "khịa" ngay ngày đầu!'
+          : 'Chào mừng ${validMembers.first}! Ngân sách ${HybridNlpService.formatVnd(validBudget)}/tháng đã được thiết lập (hạn mức ${HybridNlpService.formatVnd(dailyBase)}/ngày). Hãy ghi khoản chi đầu tiên nhé.',
       splitItems: const [],
       selectedRoommateForQr: qrTarget,
       settledByMember: const {},

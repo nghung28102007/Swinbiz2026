@@ -33,7 +33,7 @@ class _AnalyticsScreenState extends ConsumerState<AnalyticsScreen> {
     HapticFeedback.mediumImpact();
     final buffer = StringBuffer();
     buffer.writeln(
-      '📊 BÁO CÁO TÀI CHÍNH SAVAGEBOT • ${botState.groupName.toUpperCase()}',
+      'BÁO CÁO TÀI CHÍNH SAVAGEBOT • ${botState.groupName.toUpperCase()}',
     );
     buffer.writeln(
       '• Đã chi tháng này: ${HybridNlpService.formatVnd(botState.totalSpentThisMonth)} / ${HybridNlpService.formatVnd(botState.monthlyBudget)} (${(botState.monthlyBudgetUsedRatio * 100).round()}%)',
@@ -48,14 +48,14 @@ class _AnalyticsScreenState extends ConsumerState<AnalyticsScreen> {
       final topCat = botState.topSpendingCategory!;
       final topAmt = botState.categoryTotals[topCat] ?? 0;
       buffer.writeln(
-        '• Danh mục ngốn nhiều nhất: ${topCat.emoji} ${topCat.labelVi} (${HybridNlpService.formatVnd(topAmt)})',
+        '• Danh mục ngốn nhiều nhất: ${topCat.labelVi} (${HybridNlpService.formatVnd(topAmt)})',
       );
     }
     if (botState.transactions.isNotEmpty) {
       buffer.writeln('--- Giao dịch gần đây (${botState.transactions.length} GD) ---');
       for (final tx in botState.transactions.reversed.take(10)) {
         buffer.writeln(
-          '• ${tx.category.emoji} ${tx.title}: -${HybridNlpService.formatVnd(tx.amountVnd)} (${tx.payerName})',
+          '• ${tx.title}: -${HybridNlpService.formatVnd(tx.amountVnd)} (${tx.payerName})',
         );
       }
     }
@@ -70,7 +70,7 @@ class _AnalyticsScreenState extends ConsumerState<AnalyticsScreen> {
           borderRadius: BorderRadius.circular(AppRadius.sm),
         ),
         content: const Text(
-          'Đã sao chép báo cáo phân tích ví vào bộ nhớ tạm! 📊📋',
+          'Đã sao chép báo cáo phân tích ví vào bộ nhớ tạm.',
           style: TextStyle(color: Colors.white, fontWeight: FontWeight.w700),
         ),
       ),
@@ -239,7 +239,9 @@ class _AnalyticsScreenState extends ConsumerState<AnalyticsScreen> {
                   child: _KpiSummaryCard(
                     label: 'Top ngốn tiền',
                     value: topCat != null
-                        ? '${topCat.emoji} ${HybridNlpService.formatCompactVnd(categoryTotals[topCat] ?? 0)}'
+                        ? HybridNlpService.formatCompactVnd(
+                            categoryTotals[topCat] ?? 0,
+                          )
                         : '0đ',
                     subtext: topCat != null ? topCat.labelVi : 'Chưa phát sinh',
                     accentColor: topCat?.color ?? AppColors.amber,
@@ -481,7 +483,7 @@ class _AnalyticsScreenState extends ConsumerState<AnalyticsScreen> {
                               borderRadius: BorderRadius.circular(99),
                             ),
                             child: Text(
-                              'Bỏ lọc ${_selectedCategoryFilter!.emoji} ✕',
+                              'Bỏ lọc ${_selectedCategoryFilter!.labelVi} ✕',
                               style: TextStyle(
                                 fontSize: 10.5,
                                 fontWeight: FontWeight.w800,
@@ -551,16 +553,31 @@ class _AnalyticsScreenState extends ConsumerState<AnalyticsScreen> {
                                       MainAxisAlignment.spaceBetween,
                                   children: [
                                     Expanded(
-                                      child: Text(
-                                        '${cat.emoji} ${cat.labelVi}',
-                                        overflow: TextOverflow.ellipsis,
-                                        style: TextStyle(
-                                          fontSize: 12.5,
-                                          fontWeight: isSelectedCat
-                                              ? FontWeight.w900
-                                              : FontWeight.w700,
-                                          color: textPrimary,
-                                        ),
+                                      child: Row(
+                                        children: [
+                                          Container(
+                                            width: 8,
+                                            height: 8,
+                                            decoration: BoxDecoration(
+                                              color: cat.color,
+                                              shape: BoxShape.circle,
+                                            ),
+                                          ),
+                                          const SizedBox(width: 8),
+                                          Expanded(
+                                            child: Text(
+                                              cat.labelVi,
+                                              overflow: TextOverflow.ellipsis,
+                                              style: TextStyle(
+                                                fontSize: 12.5,
+                                                fontWeight: isSelectedCat
+                                                    ? FontWeight.w900
+                                                    : FontWeight.w700,
+                                                color: textPrimary,
+                                              ),
+                                            ),
+                                          ),
+                                        ],
                                       ),
                                     ),
                                     const SizedBox(width: 8),
@@ -672,7 +689,9 @@ class _AnalyticsScreenState extends ConsumerState<AnalyticsScreen> {
                                   children: [
                                     Expanded(
                                       child: Text(
-                                        isTreasurer ? '👑 $member' : '👤 $member',
+                                        isTreasurer
+                                            ? '$member (Thủ quỹ)'
+                                            : member,
                                         overflow: TextOverflow.ellipsis,
                                         style: TextStyle(
                                           fontSize: 12.5,
@@ -980,17 +999,11 @@ class _AnalyticsScreenState extends ConsumerState<AnalyticsScreen> {
                       child: Row(
                         children: [
                           Container(
-                            width: 42,
-                            height: 42,
+                            width: 4,
+                            height: 36,
                             decoration: BoxDecoration(
-                              color: tx.category.color.withValues(alpha: 0.16),
-                              borderRadius: BorderRadius.circular(14),
-                            ),
-                            child: Center(
-                              child: Text(
-                                tx.category.emoji,
-                                style: const TextStyle(fontSize: 19),
-                              ),
+                              color: tx.category.color,
+                              borderRadius: BorderRadius.circular(99),
                             ),
                           ),
                           const SizedBox(width: 12),

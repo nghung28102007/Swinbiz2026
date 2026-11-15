@@ -385,7 +385,7 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
                           child: ChoiceChip(
                             selected: _selectedPersona == PersonaMode.savage,
                             label: const Center(
-                              child: Text('🔥 Mỏ Hỗn'),
+                              child: Text('Mỏ Hỗn'),
                             ),
                             selectedColor:
                                 AppColors.rose.withValues(alpha: 0.2),
@@ -399,7 +399,7 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
                           child: ChoiceChip(
                             selected: _selectedPersona == PersonaMode.coach,
                             label: const Center(
-                              child: Text('🌱 Quân Sư'),
+                              child: Text('Quân Sư'),
                             ),
                             selectedColor:
                                 AppColors.emerald.withValues(alpha: 0.2),

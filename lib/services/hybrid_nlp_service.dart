@@ -1,4 +1,6 @@
+import 'dart:convert';
 import 'package:flutter/material.dart';
+import 'package:http/http.dart' as http;
 import 'package:intl/intl.dart';
 
 enum PersonaMode {
@@ -663,6 +665,8 @@ class HybridNlpService {
     return ExpenseCategory.other;
   }
 
+  static int _responseVariantCounter = 0;
+
   static String generatePersonaResponse({
     required PersonaMode mode,
     required String itemTitle,
@@ -674,36 +678,308 @@ class HybridNlpService {
   }) {
     final formattedAmount = formatVnd(amountVnd);
     final formattedSafe = formatVnd(remainingDailySafeVnd);
+    final lower = itemTitle.toLowerCase();
+    final int variant = (_responseVariantCounter++) +
+        (mode == PersonaMode.savage ? 0 : 3);
 
     if (mode == PersonaMode.savage) {
-      if (category == ExpenseCategory.bobaAndCafe) {
-        return 'Ê $payerName, lại "$itemTitle" hết $formattedAmount! Đường huyết tăng tỷ lệ nghịch với số dư MB Bank đó chiến thần ơi. Hôm nay chỉ còn được tiêu $formattedSafe thôi nhé! 🧋💀';
-      }
-      if (category == ExpenseCategory.dormAndUtilities || amountVnd >= 500000) {
-        return 'Cú tát tư bản mang tên "$itemTitle" (-$formattedAmount)! Ví $payerName xẹp lép như bánh tráng phơi sương, chuẩn bị chuỗi ngày mì Hảo Hảo cứu net thôi! ⚡💸';
-      }
-      if (category == ExpenseCategory.transport) {
-        return 'Đi có mấy bước chân cũng "$itemTitle" mất $formattedAmount! Đôi chân $payerName sinh ra để làm cảnh hay đang cosplay tổng tài tài chính âm? 🛵🔥';
-      }
-      if (category == ExpenseCategory.entertainment) {
-        return 'Chốt đơn "$itemTitle" ($formattedAmount) nhanh như cách người yêu cũ trở mặt! Còn đúng $predictedRunwayDays ngày sống sót thôi đó $payerName, tém cái tay lại! 🎮👀';
-      }
-      if (remainingDailySafeVnd < 40000) {
-        return 'Gắt đấy $payerName! Vừa bay $formattedAmount cho "$itemTitle", hạn mức hôm nay còn đúng $formattedSafe — đủ mua 2 gói mì cộng 1 quả trứng gà thôi nha! 🍜🚨';
-      }
-      return 'Đã ghi sổ "$itemTitle" (-$formattedAmount) cho $payerName. Tốc độ quẹt QR nhanh hơn tốc độ chạy deadline ở Swinburne nữa, cẩn thận cuối tháng ăn không khí! 🔥';
+      final List<String> pool = _buildSavagePool(
+        lower: lower,
+        itemTitle: itemTitle,
+        formattedAmount: formattedAmount,
+        formattedSafe: formattedSafe,
+        amountVnd: amountVnd,
+        category: category,
+        remainingDailySafeVnd: remainingDailySafeVnd,
+        predictedRunwayDays: predictedRunwayDays,
+        payerName: payerName,
+      );
+      return pool[variant % pool.length];
     } else {
-      final String d10Warning = predictedRunwayDays <= 10
-          ? ' ⚠️ Cảnh báo D-10: Quỹ sinh tồn chỉ còn $predictedRunwayDays ngày, ưu tiên cắt giảm trà sữa & mua sắm ngẫu hứng!'
-          : ' Quỹ sinh tồn vẫn an toàn cho $predictedRunwayDays ngày tới.';
-
-      if (category == ExpenseCategory.bobaAndCafe) {
-        return 'Đã lưu "$itemTitle" ($formattedAmount) cho $payerName. Mẹo Quân Sư: Bớt 2 ly nước ngọt mỗi tuần giúp bạn tiết kiệm ~440.000đ/tháng.$d10Warning 🌱';
-      }
-      if (category == ExpenseCategory.dormAndUtilities) {
-        return 'Khoản chi cố định "$itemTitle" ($formattedAmount) đã được hạch toán. Bạn có thể qua tab "Chia tiền QR" để thu tiền phòng từ các thành viên tự động.$d10Warning 🤝';
-      }
-      return 'Đã ghi nhận "$itemTitle" ($formattedAmount) của $payerName. Hạn mức an toàn hôm nay còn $formattedSafe mà không ảnh hưởng mục tiêu tiết kiệm.$d10Warning ✨';
+      final List<String> pool = _buildCoachPool(
+        lower: lower,
+        itemTitle: itemTitle,
+        formattedAmount: formattedAmount,
+        formattedSafe: formattedSafe,
+        amountVnd: amountVnd,
+        category: category,
+        remainingDailySafeVnd: remainingDailySafeVnd,
+        predictedRunwayDays: predictedRunwayDays,
+        payerName: payerName,
+      );
+      return pool[variant % pool.length];
     }
+  }
+
+  static List<String> _buildSavagePool({
+    required String lower,
+    required String itemTitle,
+    required String formattedAmount,
+    required String formattedSafe,
+    required int amountVnd,
+    required ExpenseCategory category,
+    required int remainingDailySafeVnd,
+    required int predictedRunwayDays,
+    required String payerName,
+  }) {
+    if (category == ExpenseCategory.bobaAndCafe) {
+      if (lower.contains('cafe') ||
+          lower.contains('cà phê') ||
+          lower.contains('bạc xỉu') ||
+          lower.contains('cf')) {
+        return [
+          '$payerName nạp $formattedAmount tiền "$itemTitle" để tỉnh táo nhìn số dư tài khoản tụt dốc đúng không? Hạn mức ngày giờ chỉ còn $formattedSafe thôi.',
+          'Lại một ly "$itemTitle" ($formattedAmount). Caffeine thì giúp $payerName thức chạy deadline, còn chiếc ví thì sắp ngất lâm sàng rồi.',
+          'Chi $formattedAmount cho "$itemTitle" — nhịp tim $payerName tăng vì cà phê hay vì nhìn quỹ sống sót chỉ còn $predictedRunwayDays ngày?',
+          'Mỗi ngày một cữ "$itemTitle" $formattedAmount thế này thì tháng sau $payerName uống nước lọc đun sôi ngắm phố nhé. Hôm nay còn tiêu được $formattedSafe.',
+          'Đầu tư $formattedAmount vào "$itemTitle", tinh thần tỉnh táo 100% nhưng độ dày của ví giảm còn $formattedSafe cho hôm nay.',
+        ];
+      }
+      return [
+        'Ê $payerName, lại "$itemTitle" hết $formattedAmount! Đường huyết tăng tỷ lệ nghịch với số dư ngân hàng đó, hôm nay chỉ còn được tiêu $formattedSafe thôi.',
+        'Cúng $formattedAmount cho "$itemTitle" nhanh thế $payerName? Cổ đông quán trà sữa chắc phải gửi bằng khen cho bạn, còn ví bạn chỉ trụ được $predictedRunwayDays ngày nữa thôi.',
+        'Lại là "$itemTitle" ($formattedAmount)! Bảo giảm ngọt giảm tiêu mà tay $payerName quẹt QR còn nhanh hơn vận tốc ánh sáng. Hạn mức ngày còn $formattedSafe.',
+        'Một ly "$itemTitle" giá $formattedAmount đổi lấy 15 phút hạnh phúc và cả tuần cuối tháng ăn mì gói. Suy nghĩ kỹ chưa $payerName?',
+        'Chuỗi ngày cai trà sữa của $payerName chính thức bay màu vì "$itemTitle" ($formattedAmount). Quỹ an toàn hôm nay tụt xuống còn $formattedSafe.',
+        'Uống "$itemTitle" hết $formattedAmount xong nhớ giữ lại cái ly nhựa để cuối tháng đựng tiền lẻ nhé $payerName. Còn đúng $predictedRunwayDays ngày đường băng thôi.',
+      ];
+    }
+
+    if (category == ExpenseCategory.dormAndUtilities) {
+      return [
+        'Cú tát tư bản mang tên "$itemTitle" (-$formattedAmount)! Ví $payerName xẹp đi trông thấy, nhớ đòi tiền phòng anh em ngay kẻo cuối tháng ôm nợ.',
+        'Thanh toán "$itemTitle" mất $formattedAmount. Lúc bật điều hòa mát rượi thì cười tươi, lúc nhìn hóa đơn thì $payerName trầm cảm luôn.',
+        'Bay nhẹ $formattedAmount cho "$itemTitle". Khoản này mà không chia đều qua VietQR ngay là $payerName xác định gồng lưng cả tháng.',
+        'Hóa đơn "$itemTitle" ($formattedAmount) vừa gõ cửa. Số ngày sống khỏe của cả phòng giờ rút ngắn còn $predictedRunwayDays ngày.',
+        'Đã trừ $formattedAmount tiền "$itemTitle" của $payerName. Chi phí sinh hoạt thì tăng mà ngân sách ngày giờ chỉ còn $formattedSafe.',
+      ];
+    }
+
+    if (category == ExpenseCategory.transport) {
+      if (lower.contains('xăng') || lower.contains('nhớt')) {
+        return [
+          'Đổ "$itemTitle" hết $formattedAmount, xe thì đầy bình mà ví $payerName thì cạn bình! Hôm nay chỉ còn dư $formattedSafe thôi.',
+          'Nuôi chiến mã tốn $formattedAmount tiền "$itemTitle". Từ mai $payerName bớt lượn lờ hồ Tây không mục đích nhé, quỹ còn $predictedRunwayDays ngày thôi.',
+          'Vừa bơm $formattedAmount vào "$itemTitle". Xe chạy êm ru còn tài khoản $payerName kêu gào vì hạn mức ngày chỉ còn $formattedSafe.',
+        ];
+      }
+      return [
+        'Đi có mấy bước chân cũng "$itemTitle" mất $formattedAmount! Đôi chân $payerName sinh ra để làm cảnh hay đang nhập vai chủ tịch giả nghèo?',
+        'Gọi "$itemTitle" hết $formattedAmount. Ngồi sau xe gió thổi mát mặt nhưng nhìn lại hạn mức ngày còn đúng $formattedSafe thì lạnh sống lưng.',
+        'Tốc độ đặt "$itemTitle" ($formattedAmount) của $payerName nhanh thật, cứ đà này $predictedRunwayDays ngày nữa là chuyển sang cuốc bộ toàn tập.',
+        'Lại $formattedAmount cho chuyến "$itemTitle". Tiết kiệm được 15 phút đi đường nhưng mất luôn bữa ăn xế của $payerName rồi.',
+        'Chi $formattedAmount cho "$itemTitle" — lịch sử di chuyển thì sang chảnh mà số dư hôm nay chỉ còn vỏn vẹn $formattedSafe.',
+      ];
+    }
+
+    if (category == ExpenseCategory.entertainment) {
+      if (lower.contains('shopee') ||
+          lower.contains('lazada') ||
+          lower.contains('tiktok') ||
+          lower.contains('áo') ||
+          lower.contains('quần') ||
+          lower.contains('giày') ||
+          lower.contains('son') ||
+          lower.contains('mỹ phẩm')) {
+        return [
+          'Chốt đơn "$itemTitle" ($formattedAmount) lúc nửa tỉnh nửa mê đúng không $payerName? Tủ đồ thì chật mà hạn mức ngày giờ chỉ còn $formattedSafe.',
+          'Lại săn sale "$itemTitle" mất $formattedAmount! Mua vì rẻ hay mua vì nghiện cảm giác bóc hàng vậy $payerName? Quỹ chỉ còn trụ được $predictedRunwayDays ngày.',
+          'Rước "$itemTitle" về với giá $formattedAmount. Đồ mới thì đẹp đấy nhưng cuối tháng $payerName mặc đồ đẹp ngồi ăn mì tôm nhé.',
+          'Tay $payerName lướt giỏ hàng chốt "$itemTitle" ($formattedAmount) mượt thật, kéo tụt hạn mức hôm nay xuống còn $formattedSafe luôn.',
+        ];
+      }
+      return [
+        'Đốt $formattedAmount vào "$itemTitle" nhanh như chớp! Niềm vui ngắn hạn của $payerName vừa lấy đi một khúc đường băng, giờ chỉ còn $predictedRunwayDays ngày sống khỏe.',
+        'Giải trí kiểu "$itemTitle" ($formattedAmount) xong là ví $payerName bước vào chế độ sinh tồn khắc nghiệt. Hôm nay chỉ còn tiêu được $formattedSafe.',
+        'Vừa quẹt $formattedAmount cho "$itemTitle". Cuộc vui nào cũng có giá của nó, và cái giá hiện tại là hạn mức ngày còn đúng $formattedSafe.',
+        'Chơi hết mình với "$itemTitle" (-$formattedAmount), đến tuần cuối tháng ví hết tiền thì $payerName đừng hỏi tại sao nhé!',
+      ];
+    }
+
+    if (category == ExpenseCategory.foodAndDrink) {
+      if (amountVnd >= 100000 ||
+          lower.contains('lẩu') ||
+          lower.contains('nướng') ||
+          lower.contains('buffet') ||
+          lower.contains('sushi') ||
+          lower.contains('pizza')) {
+        return [
+          'Một bữa "$itemTitle" ngốn luôn $formattedAmount! Ăn một bữa sướng cái miệng mà $payerName làm thủng luôn hạn mức ngày (còn $formattedSafe).',
+          'Đại tiệc "$itemTitle" giá $formattedAmount! Hôm nay $payerName ăn như rồng cuốn, ngày mai nhìn số dư còn $predictedRunwayDays ngày sống sót mà rớt nước mắt.',
+          'Chi hẳn $formattedAmount cho "$itemTitle". Dạ dày $payerName đang rất hạnh phúc nhưng chiếc ví thì vừa gửi đơn xin nghỉ việc.',
+          'Bữa "$itemTitle" ($formattedAmount) này chất lượng đấy, chỉ tiếc là nó cuốn bay hạn mức hôm nay của $payerName về mức $formattedSafe.',
+        ];
+      }
+      if (amountVnd <= 35000) {
+        return [
+          'Bữa "$itemTitle" $formattedAmount khá biết điều đấy $payerName! Giữ phong độ bình dân này thì vẫn còn dư $formattedSafe cho hôm nay.',
+          'Ghi nhận "$itemTitle" giá hạt dẻ $formattedAmount. Lâu lâu mới thấy $payerName tiêu một khoản hợp lý, đường băng vẫn giữ được $predictedRunwayDays ngày.',
+          'Ăn "$itemTitle" hết $formattedAmount — chuẩn bài sinh viên tiết kiệm! Hạn mức an toàn hôm nay của $payerName vẫn còn $formattedSafe.',
+          'Khoản "$itemTitle" ($formattedAmount) gọn nhẹ, chưa làm đau ví. Nhưng $payerName đừng lấy cớ ăn rẻ rồi lát lại tự thưởng ly trà sữa 60k nhé!',
+        ];
+      }
+      return [
+        'Vừa nạp năng lượng bằng "$itemTitle" hết $formattedAmount. Tốc độ ăn uống của $payerName rất đều đặn, hạn mức hôm nay còn lại $formattedSafe.',
+        'Đã trừ $formattedAmount cho món "$itemTitle". Bụng $payerName no rồi thì nhớ khóa app ngân hàng lại nhé, hôm nay chỉ còn được tiêu $formattedSafe thôi.',
+        'Món "$itemTitle" ($formattedAmount) đã lên sổ. Với nhịp độ quẹt thẻ này của $payerName, quỹ tháng sẽ cầm cự được khoảng $predictedRunwayDays ngày nữa.',
+        'Lại $formattedAmount ra đi vì "$itemTitle". Ăn uống là chính đáng nhưng $payerName nhớ nhìn con số $formattedSafe còn lại của ngày hôm nay nhé.',
+        'Chi $formattedAmount cho "$itemTitle" — một pha giải cứu cái bụng đói của $payerName, đổi lại Pin ví hôm nay hạ xuống mức $formattedSafe.',
+      ];
+    }
+
+    // ExpenseCategory.other or fallback with multiple distinct variants
+    return [
+      'Khoản "$itemTitle" ($formattedAmount) từ đâu rơi xuống thế $payerName? Hạn mức chi tiêu hôm nay bị cắt gọn còn $formattedSafe.',
+      'Đã ghi sổ "$itemTitle" (-$formattedAmount). Những khoản phát sinh không tên thế này chính là thủ phạm làm ví $payerName bốc hơi nhanh nhất!',
+      'Vừa bay $formattedAmount cho "$itemTitle". Đường băng tài chính của $payerName hiện còn $predictedRunwayDays ngày, tiêu pha có phanh lại nhé.',
+      'Thêm một giao dịch "$itemTitle" trị giá $formattedAmount của $payerName. Số tiền an toàn được phép tiêu trong hôm nay còn $formattedSafe.',
+      'Quẹt $formattedAmount cho "$itemTitle" không chớp mắt! Nhắc nhẹ $payerName là hạn mức ngày chỉ còn đúng $formattedSafe thôi.',
+    ];
+  }
+
+  static List<String> _buildCoachPool({
+    required String lower,
+    required String itemTitle,
+    required String formattedAmount,
+    required String formattedSafe,
+    required int amountVnd,
+    required ExpenseCategory category,
+    required int remainingDailySafeVnd,
+    required int predictedRunwayDays,
+    required String payerName,
+  }) {
+    final String runwayNote = predictedRunwayDays <= 10
+        ? 'Lưu ý: Quỹ dự kiến chỉ còn đủ cho $predictedRunwayDays ngày, bạn nên ưu tiên các khoản thiết yếu.'
+        : 'Đường băng tài chính hiện duy trì tốt ở mức $predictedRunwayDays ngày.';
+
+    if (category == ExpenseCategory.bobaAndCafe) {
+      return [
+        'Đã ghi nhận "$itemTitle" ($formattedAmount) cho $payerName. Nếu giảm bớt 2 buổi đồ uống ngoài quán mỗi tuần, bạn có thể để dành thêm khoảng 400.000đ/tháng. $runwayNote',
+        'Khoản "$itemTitle" ($formattedAmount) khiến hạn mức hôm nay còn $formattedSafe. Gợi ý nhỏ: tự pha cà phê hoặc trà tại phòng sẽ tiết kiệm tới 70% chi phí đồ uống.',
+        '$payerName vừa chi $formattedAmount cho "$itemTitle". Bạn vẫn còn $formattedSafe trong hạn mức ngày, nhưng hãy đặt giới hạn tối đa 2–3 lần uống hàng quán mỗi tuần nhé.',
+        'Đã hạch toán "$itemTitle" ($formattedAmount). Những khoản đồ uống nhỏ lẻ thường chiếm tới 15% ngân sách sinh viên nếu không theo dõi sát. $runwayNote',
+        'Ghi sổ "$itemTitle" (-$formattedAmount). Để cân bằng lại ngân sách hôm nay (còn $formattedSafe), $payerName nên ưu tiên tự nấu bữa tối tại nhà.',
+      ];
+    }
+
+    if (category == ExpenseCategory.dormAndUtilities) {
+      return [
+        'Khoản chi cố định "$itemTitle" ($formattedAmount) đã được lưu. Bạn có thể chuyển sang tab Chia Tiền QR để phân bổ đều và thu lại phần của các bạn cùng phòng.',
+        'Đã cập nhật "$itemTitle" ($formattedAmount) do $payerName ứng trước. Việc tất toán sớm các hóa đơn sinh hoạt giúp nhóm kiểm soát chính xác quỹ khả dụng còn lại.',
+        'Ghi nhận "$itemTitle" ($formattedAmount). Mẹo tiết kiệm cho phòng trọ: hẹn giờ tắt bình nóng lạnh và điều hòa giúp giảm 15–20% hóa đơn điện mỗi tháng.',
+        'Khoản "$itemTitle" ($formattedAmount) đã được đưa vào sổ chung. Hạn mức chi tiêu cá nhân hôm nay của bạn hiện còn $formattedSafe. $runwayNote',
+      ];
+    }
+
+    if (category == ExpenseCategory.transport) {
+      return [
+        'Đã lưu chi phí di chuyển "$itemTitle" ($formattedAmount) của $payerName. Hạn mức trong ngày còn lại $formattedSafe. $runwayNote',
+        'Khoản "$itemTitle" ($formattedAmount) đã được tính vào mục Di chuyển. Nếu quãng đường dưới 2km hoặc tiện tuyến, kết hợp xe buýt/đi bộ sẽ giúp bạn dư thêm một khoản đáng kể.',
+        'Ghi nhận $formattedAmount cho "$itemTitle". Bạn có thể tận dụng các gói hội viên đặt xe hoặc đi chung cùng bạn học để tối ưu chi phí đi lại hàng tuần.',
+        'Đã trừ $formattedAmount tiền "$itemTitle". Ngân sách an toàn hôm nay của $payerName còn $formattedSafe, hoàn toàn nằm trong tầm kiểm soát.',
+      ];
+    }
+
+    if (category == ExpenseCategory.entertainment) {
+      return [
+        'Khoản giải trí & mua sắm "$itemTitle" ($formattedAmount) đã được ghi nhận. Quy tắc 24 giờ (chờ 1 ngày trước khi thanh toán đồ không thiết yếu) sẽ giúp $payerName tránh mua sắm ngẫu hứng.',
+        '$payerName vừa chi $formattedAmount cho "$itemTitle", hạn mức ngày còn $formattedSafe. Hãy cân đối giảm nhẹ các khoản ăn vặt trong 2 ngày tới để bù lại nhé.',
+        'Đã lưu "$itemTitle" ($formattedAmount). Trong quy tắc ngân sách 50/30/20, nhóm Giải trí & Mua sắm nên được giữ dưới 20% tổng chi tiêu tháng. $runwayNote',
+        'Hạch toán "$itemTitle" (-$formattedAmount). Niềm vui tinh thần rất cần thiết, miễn là bạn giữ phần chi tiêu còn lại hôm nay trong khung $formattedSafe.',
+      ];
+    }
+
+    if (category == ExpenseCategory.foodAndDrink) {
+      if (amountVnd >= 90000) {
+        return [
+          'Bữa ăn "$itemTitle" ($formattedAmount) cao hơn mức trung bình thường ngày của sinh viên. $payerName nên ưu tiên các bữa tự nấu hoặc cơm suất nhẹ nhàng vào ngày mai để cân bằng lại nhé.',
+          'Đã ghi nhận "$itemTitle" ($formattedAmount). Vì khoản ăn uống này khá lớn, hạn mức an toàn hôm nay còn $formattedSafe. $runwayNote',
+          'Khoản "$itemTitle" ($formattedAmount) đã lên sổ. Những bữa ăn tụ tập rất vui, bạn chỉ cần siết nhẹ chi tiêu vặt trong vài ngày tới là quỹ tháng vẫn đúng kế hoạch.',
+        ];
+      }
+      return [
+        'Bữa ăn "$itemTitle" ($formattedAmount) của $payerName rất hợp lý. Bạn vẫn còn $formattedSafe trong hạn mức an toàn của ngày hôm nay.',
+        'Đã lưu "$itemTitle" ($formattedAmount) vào nhóm Ăn uống. Duy trì mức chi phí bữa ăn ổn định như hiện tại giúp đường băng tài chính giữ vững $predictedRunwayDays ngày.',
+        'Ghi nhận "$itemTitle" ($formattedAmount). Dinh dưỡng đầy đủ với chi phí vừa phải là cách thông minh nhất để bảo vệ ngân sách tháng của $payerName.',
+        'Khoản "$itemTitle" (-$formattedAmount) nằm gọn trong kế hoạch chi tiêu ngày. Hạn mức còn lại hôm nay của bạn là $formattedSafe.',
+        'Đã hạch toán "$itemTitle" ($formattedAmount) cho $payerName. Nhịp độ chi tiêu ăn uống hôm nay đang rất cân đối. $runwayNote',
+      ];
+    }
+
+    return [
+      'Đã ghi nhận khoản "$itemTitle" ($formattedAmount) của $payerName. Hạn mức chi tiêu an toàn trong hôm nay còn lại $formattedSafe.',
+      'Khoản phát sinh "$itemTitle" ($formattedAmount) đã được cập nhật vào sổ. $runwayNote',
+      'Đã lưu "$itemTitle" (-$formattedAmount). Bạn nên rà soát lại nhóm Chi tiêu khác vào cuối tuần để nhận diện các khoản rò rỉ tài chính nhỏ.',
+      'Hạch toán thành công "$itemTitle" ($formattedAmount) cho $payerName. Số dư được phép tiêu thêm hôm nay mà không lẹm vào quỹ tháng là $formattedSafe.',
+    ];
+  }
+
+  /// Calls a live zero-config Cloud LLM endpoint to generate a bespoke, unique
+  /// Savage Roast and Coach Advice for the exact transaction context.
+  /// Falls back gracefully to null if offline or rate-limited.
+  static Future<({String savage, String coach})?> fetchLiveAiResponses({
+    required String itemTitle,
+    required int amountVnd,
+    required ExpenseCategory category,
+    required int remainingDailySafeVnd,
+    required int predictedRunwayDays,
+    required String payerName,
+  }) async {
+    try {
+      final formattedAmount = formatVnd(amountVnd);
+      final formattedSafe = formatVnd(remainingDailySafeVnd);
+      final prompt = '''
+Bạn là trợ lý tài chính Gen Z Việt Nam tên SavageBot. Người dùng "$payerName" vừa chi tiêu món "$itemTitle" hết $formattedAmount (Danh mục: ${category.labelVi}).
+Hạn mức tiêu thêm hôm nay còn: $formattedSafe. Số ngày sống khỏe còn lại trong tháng: $predictedRunwayDays ngày.
+Hãy viết 2 câu phản hồi ngắn gọn (mỗi câu 25-45 từ, tiếng Việt tự nhiên, KHÔNG dùng icon/emoji, không lặp lại cấu trúc cũ, bám sát tên món "$itemTitle" và số tiền $formattedAmount):
+1. "savage": giọng Mỏ Hỗn hài hước, cà khịa thông minh kiểu bạn thân sinh viên.
+2. "coach": giọng Quân Sư tài chính điềm tĩnh, phân tích thực tế và đưa mẹo cụ thể cho món "$itemTitle".
+Chỉ trả về đúng JSON hợp lệ theo mẫu: {"savage": "...", "coach": "..."}
+''';
+
+      final response = await http
+          .post(
+            Uri.parse('https://text.pollinations.ai/openai'),
+            headers: const {'Content-Type': 'application/json'},
+            body: jsonEncode({
+              'model': 'openai',
+              'messages': [
+                {
+                  'role': 'system',
+                  'content':
+                      'Bạn chỉ trả về JSON hợp lệ {"savage":"...","coach":"..."} bằng tiếng Việt, không markdown, không emoji.',
+                },
+                {'role': 'user', 'content': prompt},
+              ],
+              'temperature': 0.9,
+            }),
+          )
+          .timeout(const Duration(seconds: 4));
+
+      if (response.statusCode == 200) {
+        final decoded = jsonDecode(utf8.decode(response.bodyBytes));
+        final String? content =
+            decoded['choices']?[0]?['message']?['content'] as String?;
+        if (content != null && content.isNotEmpty) {
+          final startIdx = content.indexOf('{');
+          final endIdx = content.lastIndexOf('}');
+          if (startIdx != -1 && endIdx > startIdx) {
+            final jsonMap = jsonDecode(content.substring(startIdx, endIdx + 1))
+                as Map<String, dynamic>;
+            final savage = (jsonMap['savage'] as String?)?.trim();
+            final coach = (jsonMap['coach'] as String?)?.trim();
+            if (savage != null &&
+                savage.isNotEmpty &&
+                coach != null &&
+                coach.isNotEmpty) {
+              return (savage: savage, coach: coach);
+            }
+          }
+        }
+      }
+    } catch (_) {
+      // Offline or timeout: keep the instant on-device multi-variant response
+    }
+    return null;
   }
 }

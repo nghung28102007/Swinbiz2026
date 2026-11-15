@@ -54,10 +54,10 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
 
   static const List<({String label, String query, bool shared})>
       _quickTapPresets = [
-    (label: '🍜 Phở 45k', query: 'phở bò 45k', shared: false),
-    (label: '🧋 Phê La 55k', query: 'trà sữa phê la 55k', shared: false),
-    (label: '🛵 Grab 28k', query: 'grab đi học 28k', shared: false),
-    (label: '⚡ Điện 350k', query: 'tiền điện 350k', shared: true),
+    (label: 'Phở 45k', query: 'phở bò 45k', shared: false),
+    (label: 'Phê La 55k', query: 'trà sữa phê la 55k', shared: false),
+    (label: 'Grab 28k', query: 'grab đi học 28k', shared: false),
+    (label: 'Điện 350k', query: 'tiền điện 350k', shared: true),
   ];
 
   @override
@@ -124,12 +124,12 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
     bool isSavage,
   ) {
     HapticFeedback.selectionClick();
-    final modeTag = isSavage ? '🔥 SAVAGE ROAST' : '🌱 QUÂN SƯ AI';
+    final modeTag = isSavage ? 'SAVAGE ROAST' : 'QUÂN SƯ AI';
     final shareText =
         '[$modeTag • SavageBot]\n'
-        '💸 Khoản chi: ${tx.title} (-${HybridNlpService.formatVnd(tx.amountVnd)})\n'
-        '👤 Người chi: ${tx.payerName}\n'
-        '💬 AI phán: "$reply"';
+        'Khoản chi: ${tx.title} (-${HybridNlpService.formatVnd(tx.amountVnd)})\n'
+        'Người chi: ${tx.payerName}\n'
+        'AI phán: "$reply"';
     Clipboard.setData(ClipboardData(text: shareText));
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
@@ -141,8 +141,8 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
         ),
         content: Text(
           isSavage
-              ? 'Đã sao chép thẻ Roast AI để khoe nhóm chat! 🔥📋'
-              : 'Đã sao chép lời khuyên Quân Sư AI! 🌱📋',
+              ? 'Đã sao chép thẻ Roast AI để chia sẻ nhóm.'
+              : 'Đã sao chép lời khuyên Quân Sư AI.',
           style: const TextStyle(
             color: Colors.white,
             fontWeight: FontWeight.w700,
@@ -575,7 +575,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
                               ),
                               child: Center(
                                 child: Text(
-                                  '🔥 Mỏ Hỗn (Roast)',
+                                  'Mỏ Hỗn (Roast)',
                                   maxLines: 1,
                                   overflow: TextOverflow.ellipsis,
                                   style: TextStyle(
@@ -613,7 +613,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
                               ),
                               child: Center(
                                 child: Text(
-                                  '🌱 Quân Sư (Coach)',
+                                  'Quân Sư (Coach)',
                                   maxLines: 1,
                                   overflow: TextOverflow.ellipsis,
                                   style: TextStyle(
@@ -650,19 +650,13 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
                       color: AppColors.amber.withValues(alpha: 0.5),
                     ),
                   ),
-                  child: Row(
-                    children: [
-                      const Text('🧋🚫', style: TextStyle(fontSize: 13)),
-                      const SizedBox(width: 4),
-                      Text(
-                        '${botState.noBobaStreakDays}d',
-                        style: const TextStyle(
-                          fontSize: 12.5,
-                          fontWeight: FontWeight.w800,
-                          color: AppColors.amber,
-                        ),
-                      ),
-                    ],
+                  child: Text(
+                    'Chuỗi ${botState.noBobaStreakDays}d',
+                    style: const TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.w800,
+                      color: AppColors.amber,
+                    ),
                   ),
                 ),
               ],
@@ -732,7 +726,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
                                     child: Text(
                                       botState.dailySafeToSpend == 0 &&
                                               botState.totalSpentThisMonth > 0
-                                          ? '⚠️ Đã chạm trần hạn mức ngày!'
+                                          ? 'Đã chạm trần hạn mức ngày!'
                                           : 'Hôm nay tiêu thêm được',
                                       maxLines: 1,
                                       overflow: TextOverflow.ellipsis,
@@ -785,7 +779,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
                                         borderRadius: BorderRadius.circular(99),
                                       ),
                                       child: const Text(
-                                        '🚨 Hết Pin ví ngày',
+                                        'Hết Pin ví ngày',
                                         style: TextStyle(
                                           fontSize: 11,
                                           fontWeight: FontWeight.w800,
@@ -804,7 +798,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
                                       borderRadius: BorderRadius.circular(99),
                                     ),
                                     child: Text(
-                                      '🛡️ Sống khỏe: ${botState.predictedRunwayDays} ngày',
+                                      'Sống khỏe: ${botState.predictedRunwayDays} ngày',
                                       style: const TextStyle(
                                         fontSize: 11,
                                         fontWeight: FontWeight.w800,
@@ -932,7 +926,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
                       ),
                     ),
                     Text(
-                      '🛡️ ${botState.predictedRunwayDays}d',
+                      '${botState.predictedRunwayDays}d',
                       style: const TextStyle(
                         fontSize: 11.5,
                         fontWeight: FontWeight.w800,
@@ -962,8 +956,8 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
                           Expanded(
                             child: Text(
                               isSavage
-                                  ? '🤖 Chat Mỏ Hỗn AI'
-                                  : '🧘‍♂️ Cố Vấn Quân Sư AI',
+                                  ? 'Trợ Lý Mỏ Hỗn AI'
+                                  : 'Cố Vấn Quân Sư AI',
                               maxLines: 1,
                               overflow: TextOverflow.ellipsis,
                               style: TextStyle(
@@ -1030,8 +1024,8 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
                                     children: [
                                       Text(
                                         isSavage
-                                            ? '🔥 Trợ lý Mỏ Hỗn đã sẵn sàng!'
-                                            : '🌱 Quân sư Tài chính đã sẵn sàng!',
+                                            ? 'Trợ lý Mỏ Hỗn đã sẵn sàng!'
+                                            : 'Quân sư Tài chính đã sẵn sàng!',
                                         textAlign: TextAlign.center,
                                         style: TextStyle(
                                           fontSize: 13.5,
@@ -1194,7 +1188,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
                                                       BorderRadius.circular(8),
                                                 ),
                                                 child: Text(
-                                                  '${tx.category.emoji} ${tx.category.labelVi}',
+                                                  tx.category.labelVi,
                                                   style: TextStyle(
                                                     fontSize: 10,
                                                     fontWeight: FontWeight.w800,
@@ -1245,8 +1239,8 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
                                                 tx.routeTier ==
                                                         NlpRouteTier
                                                             .tier1LocalRegex
-                                                    ? '⚡ ${tx.latencyMs.toStringAsFixed(1)}ms • 0đ'
-                                                    : '🧠 OCR/LLM • 110đ',
+                                                    ? '${tx.latencyMs.toStringAsFixed(1)}ms • 0đ'
+                                                    : 'OCR/LLM • 110đ',
                                                 style: TextStyle(
                                                   fontSize: 9.5,
                                                   fontWeight: FontWeight.w700,
@@ -1320,29 +1314,14 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
                                         crossAxisAlignment:
                                             CrossAxisAlignment.start,
                                         children: [
-                                          Row(
-                                            crossAxisAlignment:
-                                                CrossAxisAlignment.start,
-                                            children: [
-                                              Text(
-                                                isSavage ? '🔥' : '🌱',
-                                                style: const TextStyle(
-                                                  fontSize: 16,
-                                                ),
-                                              ),
-                                              const SizedBox(width: 8),
-                                              Expanded(
-                                                child: Text(
-                                                  reply,
-                                                  style: TextStyle(
-                                                    fontSize: 12.5,
-                                                    height: 1.38,
-                                                    fontWeight: FontWeight.w600,
-                                                    color: textPrimary,
-                                                  ),
-                                                ),
-                                              ),
-                                            ],
+                                          Text(
+                                            reply,
+                                            style: TextStyle(
+                                              fontSize: 12.5,
+                                              height: 1.38,
+                                              fontWeight: FontWeight.w600,
+                                              color: textPrimary,
+                                            ),
                                           ),
                                           const SizedBox(height: 4),
                                           Align(
@@ -1503,9 +1482,13 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
                       ),
                       child: Row(
                         children: [
-                          Text(
-                            _liveParsedPreview!.category.emoji,
-                            style: const TextStyle(fontSize: 16),
+                          Container(
+                            width: 4,
+                            height: 28,
+                            decoration: BoxDecoration(
+                              color: _liveParsedPreview!.category.color,
+                              borderRadius: BorderRadius.circular(99),
+                            ),
                           ),
                           const SizedBox(width: 8),
                           Expanded(
@@ -1532,8 +1515,8 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
                                             botState.activePayer;
                                     return Text(
                                       _isSharedRoomExpense
-                                          ? '👤 $detectedPayer • ⚡ 0đ API • Đẩy Chia QR'
-                                          : '👤 $detectedPayer • ⚡ Tier-1 (${_liveParsedPreview!.latencyMs}ms) • 0đ API',
+                                          ? '$detectedPayer • 0đ API • Đẩy Chia QR'
+                                          : '$detectedPayer • Tier-1 (${_liveParsedPreview!.latencyMs}ms) • 0đ API',
                                       maxLines: 1,
                                       overflow: TextOverflow.ellipsis,
                                       style: const TextStyle(
@@ -1632,29 +1615,15 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
                                       : Colors.transparent,
                                 ),
                               ),
-                              child: Row(
-                                children: [
-                                  Icon(
-                                    _isSharedRoomExpense
-                                        ? Icons.group_rounded
-                                        : Icons.group_outlined,
-                                    size: 13,
-                                    color: _isSharedRoomExpense
-                                        ? AppColors.amber
-                                        : textSecondary,
-                                  ),
-                                  const SizedBox(width: 4),
-                                  Text(
-                                    'Chia phòng',
-                                    style: TextStyle(
-                                      fontSize: 11,
-                                      fontWeight: FontWeight.w800,
-                                      color: _isSharedRoomExpense
-                                          ? AppColors.amber
-                                          : textSecondary,
-                                    ),
-                                  ),
-                                ],
+                              child: Text(
+                                'Chia phòng',
+                                style: TextStyle(
+                                  fontSize: 11,
+                                  fontWeight: FontWeight.w800,
+                                  color: _isSharedRoomExpense
+                                      ? AppColors.amber
+                                      : textSecondary,
+                                ),
                               ),
                             ),
                           ),
@@ -1675,23 +1644,13 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
                                 borderRadius:
                                     BorderRadius.circular(AppRadius.sm),
                               ),
-                              child: const Row(
-                                children: [
-                                  Icon(
-                                    Icons.document_scanner_rounded,
-                                    size: 14,
-                                    color: AppColors.emerald,
-                                  ),
-                                  SizedBox(width: 4),
-                                  Text(
-                                    'Quét Bill AI',
-                                    style: TextStyle(
-                                      fontSize: 11,
-                                      fontWeight: FontWeight.w800,
-                                      color: AppColors.emerald,
-                                    ),
-                                  ),
-                                ],
+                              child: const Text(
+                                'Quét Bill AI',
+                                style: TextStyle(
+                                  fontSize: 11,
+                                  fontWeight: FontWeight.w800,
+                                  color: AppColors.emerald,
+                                ),
                               ),
                             ),
                           ),
@@ -1709,23 +1668,13 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
                               color: AppColors.blue.withValues(alpha: 0.15),
                               borderRadius: BorderRadius.circular(AppRadius.sm),
                             ),
-                            child: const Row(
-                              children: [
-                                Icon(
-                                  Icons.qr_code_2_rounded,
-                                  size: 14,
-                                  color: AppColors.blue,
-                                ),
-                                SizedBox(width: 4),
-                                Text(
-                                  'Chia QR',
-                                  style: TextStyle(
-                                    fontSize: 11,
-                                    fontWeight: FontWeight.w800,
-                                    color: AppColors.blue,
-                                  ),
-                                ),
-                              ],
+                            child: const Text(
+                              'Chia QR',
+                              style: TextStyle(
+                                fontSize: 11,
+                                fontWeight: FontWeight.w800,
+                                color: AppColors.blue,
+                              ),
                             ),
                           ),
                         ),
@@ -1748,9 +1697,9 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
                           ),
                           decoration: InputDecoration(
                             hintText: _isVoiceListening
-                                ? '🎙️ Đang nghe micro (nói món + số tiền)...'
+                                ? 'Đang nghe micro (nói món + số tiền)...'
                                 : (_isSimulatedVoiceRunning
-                                    ? '🎙️ Đang chạy giọng nói mẫu...'
+                                    ? 'Đang chạy giọng nói mẫu...'
                                     : _rotatingHints[_placeholderIndex]),
                             hintStyle: TextStyle(
                               fontSize: 12,
@@ -1927,7 +1876,7 @@ class _VisionOcrScannerSheetState extends State<_VisionOcrScannerSheet>
               children: [
                 Expanded(
                   child: Text(
-                    '🧾 Vision AI • Quét Hóa Đơn',
+                    'Vision AI • Quét Hóa Đơn',
                     style: TextStyle(
                       fontSize: 16,
                       fontWeight: FontWeight.w800,

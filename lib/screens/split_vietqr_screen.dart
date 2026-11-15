@@ -47,7 +47,7 @@ class _SplitVietQrScreenState extends ConsumerState<SplitVietQrScreen> {
 
     HapticFeedback.mediumImpact();
     ref.read(savageBotProvider.notifier).addCustomSplitItem(
-          '${parsed.category.emoji} ${parsed.itemTitle}',
+          parsed.itemTitle,
           parsed.amountVnd,
         );
     _customBillController.clear();
@@ -79,7 +79,7 @@ class _SplitVietQrScreenState extends ConsumerState<SplitVietQrScreen> {
     HapticFeedback.mediumImpact();
     final buffer = StringBuffer();
     buffer.writeln(
-      '📢 CHỐT QUỸ ${botState.groupName.toUpperCase()} (${HybridNlpService.formatVnd(botState.totalSplitPoolVnd)})',
+      'CHỐT QUỸ ${botState.groupName.toUpperCase()} (${HybridNlpService.formatVnd(botState.totalSplitPoolVnd)})',
     );
     for (final item in botState.splitItems) {
       buffer.writeln(
@@ -95,11 +95,11 @@ class _SplitVietQrScreenState extends ConsumerState<SplitVietQrScreen> {
         memberName: m,
       );
       buffer.writeln(
-        '👤 $m: ${HybridNlpService.formatVnd(share)} — ${done ? "Đã trả ✓" : "Chờ CK (ND: $memo)"}',
+        '• $m: ${HybridNlpService.formatVnd(share)} — ${done ? "Đã trả" : "Chờ CK (ND: $memo)"}',
       );
     }
     buffer.write(
-      '🏦 Nhận CK: $bankName • ${botState.bankAccount} (${botState.treasurerName})',
+      'Nhận CK: $bankName • ${botState.bankAccount} (${botState.treasurerName})',
     );
 
     Clipboard.setData(ClipboardData(text: buffer.toString()));
@@ -112,7 +112,7 @@ class _SplitVietQrScreenState extends ConsumerState<SplitVietQrScreen> {
           borderRadius: BorderRadius.circular(AppRadius.sm),
         ),
         content: const Text(
-          'Đã sao chép tin nhắn đòi nợ nhóm (dán ngay vào Zalo/Messenger)! 📋💸',
+          'Đã sao chép tin nhắn đòi nợ nhóm (dán ngay vào Zalo/Messenger).',
           style: TextStyle(
             color: Colors.white,
             fontWeight: FontWeight.w700,
@@ -321,7 +321,7 @@ class _SplitVietQrScreenState extends ConsumerState<SplitVietQrScreen> {
             mainAxisSize: MainAxisSize.min,
             children: [
               Text(
-                isTreasurer ? '👑 $member' : member,
+                member,
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
                 style: TextStyle(
@@ -354,8 +354,8 @@ class _SplitVietQrScreenState extends ConsumerState<SplitVietQrScreen> {
                   members.length == 1
                       ? 'Ví cá nhân'
                       : (isMemberDone
-                          ? '✓ Đã trả'
-                          : (isTreasurer ? '👑 Thủ quỹ' : 'Chờ trả')),
+                          ? 'Đã trả'
+                          : (isTreasurer ? 'Thủ quỹ' : 'Chờ trả')),
                   style: TextStyle(
                     fontSize: 9.5,
                     fontWeight: FontWeight.w800,
@@ -500,7 +500,7 @@ class _SplitVietQrScreenState extends ConsumerState<SplitVietQrScreen> {
                           children: [
                             Expanded(
                               child: Text(
-                                '➕ Khoản Chung ${botState.groupName}',
+                                'Khoản Chung ${botState.groupName}',
                                 overflow: TextOverflow.ellipsis,
                                 style: TextStyle(
                                   fontSize: 13,
@@ -776,7 +776,7 @@ class _SplitVietQrScreenState extends ConsumerState<SplitVietQrScreen> {
                                               ),
                                             ),
                                             child: Text(
-                                              isAssigned ? '✓ $name' : name,
+                                              name,
                                               style: TextStyle(
                                                 fontSize: 11,
                                                 fontWeight: FontWeight.w800,
@@ -905,7 +905,7 @@ class _SplitVietQrScreenState extends ConsumerState<SplitVietQrScreen> {
                                     children: [
                                       Text(
                                         isSelectedSettled
-                                            ? 'Đã gạch nợ ✓'
+                                            ? 'Đã gạch nợ'
                                             : (botState.isWebhookListening
                                                 ? 'Đang đối soát...'
                                                 : 'Chờ trả'),

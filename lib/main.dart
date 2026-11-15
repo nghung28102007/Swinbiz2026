@@ -660,7 +660,7 @@ class _GroupSettingsSheetState extends ConsumerState<_GroupSettingsSheet> {
               ),
               const SizedBox(height: 3),
               Text(
-                '💡 Chạm vào tên thành viên để chọn làm 👑 Thủ quỹ nhận VietQR',
+                'Chạm vào tên thành viên để chọn làm Thủ quỹ nhận VietQR',
                 style: TextStyle(
                   fontSize: 11,
                   fontWeight: FontWeight.w600,
@@ -674,7 +674,7 @@ class _GroupSettingsSheetState extends ConsumerState<_GroupSettingsSheet> {
                 children: _members.map((member) {
                   final isTreasurer = member == _treasurerName;
                   return InputChip(
-                    label: Text(isTreasurer ? '👑 $member' : member),
+                    label: Text(isTreasurer ? '$member (Thủ quỹ)' : member),
                     selected: isTreasurer,
                     selectedColor: AppColors.violet.withValues(alpha: 0.22),
                     onSelected: (_) {

@@ -428,4 +428,72 @@ void main() {
       expect(notifier.state.dailySafeToSpend, 150000);
     });
   });
+
+  group('HybridNlpService diverse non-repetitive AI responses', () {
+    test('generates distinct non-repeating responses for consecutive same-category expenses', () {
+      final roast1 = HybridNlpService.generatePersonaResponse(
+        mode: PersonaMode.savage,
+        itemTitle: 'Phở bò tái chín',
+        amountVnd: 45000,
+        category: ExpenseCategory.foodAndDrink,
+        remainingDailySafeVnd: 105000,
+        predictedRunwayDays: 22,
+        payerName: 'Minh',
+      );
+      final roast2 = HybridNlpService.generatePersonaResponse(
+        mode: PersonaMode.savage,
+        itemTitle: 'Cơm sườn nướng',
+        amountVnd: 45000,
+        category: ExpenseCategory.foodAndDrink,
+        remainingDailySafeVnd: 60000,
+        predictedRunwayDays: 21,
+        payerName: 'Minh',
+      );
+      final roast3 = HybridNlpService.generatePersonaResponse(
+        mode: PersonaMode.savage,
+        itemTitle: 'Bún chả Hà Nội',
+        amountVnd: 45000,
+        category: ExpenseCategory.foodAndDrink,
+        remainingDailySafeVnd: 15000,
+        predictedRunwayDays: 20,
+        payerName: 'Minh',
+      );
+
+      expect(roast1, isNot(equals(roast2)));
+      expect(roast2, isNot(equals(roast3)));
+      expect(roast1, isNot(equals(roast3)));
+
+      final coach1 = HybridNlpService.generatePersonaResponse(
+        mode: PersonaMode.coach,
+        itemTitle: 'Trà sữa Ô Long',
+        amountVnd: 55000,
+        category: ExpenseCategory.bobaAndCafe,
+        remainingDailySafeVnd: 95000,
+        predictedRunwayDays: 20,
+        payerName: 'Lan',
+      );
+      final coach2 = HybridNlpService.generatePersonaResponse(
+        mode: PersonaMode.coach,
+        itemTitle: 'Matcha Latte',
+        amountVnd: 55000,
+        category: ExpenseCategory.bobaAndCafe,
+        remainingDailySafeVnd: 40000,
+        predictedRunwayDays: 19,
+        payerName: 'Lan',
+      );
+      final coach3 = HybridNlpService.generatePersonaResponse(
+        mode: PersonaMode.coach,
+        itemTitle: 'Hồng trà kem cheese',
+        amountVnd: 55000,
+        category: ExpenseCategory.bobaAndCafe,
+        remainingDailySafeVnd: 0,
+        predictedRunwayDays: 18,
+        payerName: 'Lan',
+      );
+
+      expect(coach1, isNot(equals(coach2)));
+      expect(coach2, isNot(equals(coach3)));
+      expect(coach1, isNot(equals(coach3)));
+    });
+  });
 }
