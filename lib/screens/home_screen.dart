@@ -1256,8 +1256,30 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
                                               const SizedBox(width: 6),
                                               Icon(
                                                 Icons.edit_outlined,
-                                                size: 11,
+                                                size: 12,
                                                 color: textSecondary,
+                                              ),
+                                              const SizedBox(width: 8),
+                                              GestureDetector(
+                                                behavior:
+                                                    HitTestBehavior.opaque,
+                                                onTap: () =>
+                                                    _handleDeleteTransaction(
+                                                  tx.id,
+                                                  notifier,
+                                                ),
+                                                child: const Padding(
+                                                  padding: EdgeInsets.symmetric(
+                                                    horizontal: 2,
+                                                    vertical: 1,
+                                                  ),
+                                                  child: Icon(
+                                                    Icons
+                                                        .delete_outline_rounded,
+                                                    size: 13.5,
+                                                    color: AppColors.rose,
+                                                  ),
+                                                ),
                                               ),
                                             ],
                                           ),

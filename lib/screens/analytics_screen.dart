@@ -1070,11 +1070,32 @@ class _AnalyticsScreenState extends ConsumerState<AnalyticsScreen> {
                                   color: AppColors.rose,
                                 ),
                               ),
-                              const SizedBox(height: 2),
-                              Icon(
-                                Icons.edit_outlined,
-                                size: 13,
-                                color: textSecondary,
+                              const SizedBox(height: 4),
+                              Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  Icon(
+                                    Icons.edit_outlined,
+                                    size: 13.5,
+                                    color: textSecondary,
+                                  ),
+                                  const SizedBox(width: 10),
+                                  GestureDetector(
+                                    behavior: HitTestBehavior.opaque,
+                                    onTap: () => _handleDeleteTransaction(
+                                      tx.id,
+                                      notifier,
+                                    ),
+                                    child: const Padding(
+                                      padding: EdgeInsets.all(2),
+                                      child: Icon(
+                                        Icons.delete_outline_rounded,
+                                        size: 15,
+                                        color: AppColors.rose,
+                                      ),
+                                    ),
+                                  ),
+                                ],
                               ),
                             ],
                           ),

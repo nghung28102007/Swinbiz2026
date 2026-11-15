@@ -201,8 +201,8 @@ class _EditTransactionDialogState extends State<_EditTransactionDialog> {
         TextButton.icon(
           onPressed: () {
             HapticFeedback.mediumImpact();
-            widget.onDelete();
             Navigator.of(context).pop();
+            widget.onDelete();
           },
           icon: const Icon(
             Icons.delete_outline_rounded,

@@ -381,7 +381,18 @@ void main() {
       await tester.pump(const Duration(milliseconds: 200));
       expect(tester.takeException(), isNull);
 
-      // 4. Switch to Tab 2 (Chia Tiền QR) and Tab 3 (Phân Tích Ví)
+      // 4. Open Edit Dialog on a transaction on Tab 1 and tap "Xóa" (verifying no disposed controller error)
+      final txBubble = find.text('Tiền điện & Wifi Phòng 302').first;
+      await tester.tap(txBubble);
+      await tester.pump(const Duration(milliseconds: 250));
+      expect(find.text('Chỉnh Sửa Giao Dịch'), findsOneWidget);
+
+      await tester.tap(find.text('Xóa'));
+      await tester.pump(const Duration(milliseconds: 300));
+      expect(tester.takeException(), isNull);
+      expect(find.text('Tiền điện & Wifi Phòng 302'), findsNothing);
+
+      // 5. Switch to Tab 2 (Chia Tiền QR) and Tab 3 (Phân Tích Ví)
       await tester.tap(find.text('Chia Tiền QR'));
       await tester.pump(const Duration(milliseconds: 250));
       expect(tester.takeException(), isNull);
@@ -389,6 +400,32 @@ void main() {
       await tester.tap(find.text('Phân Tích Ví'));
       await tester.pump(const Duration(milliseconds: 250));
       expect(tester.takeException(), isNull);
+    });
+
+    test(
+        'deleting an overspent expense restores exact dailySafeToSpend without 3x clamping bug',
+        () {
+      final notifier =
+          SavageBotNotifier(enablePersistence: false, startWithDemo: false);
+      notifier.completeNewUserOnboarding(
+        groupName: 'Ví Minh',
+        members: const ['Minh'],
+        monthlyBudget: 4500000,
+        activePersona: PersonaMode.savage,
+      );
+      expect(notifier.state.dailySafeToSpend, 150000);
+
+      // Add a large expense (500k > 150k daily allowance)
+      notifier.addExpenseFromInput('mua áo khoác 500k');
+      expect(notifier.state.dailySafeToSpend, 0);
+      expect(notifier.state.totalSpentThisMonth, 500000);
+
+      // Delete that 500k expense -> dailySafeToSpend must return to 150,000 (not 450,000!)
+      final txId = notifier.state.transactions.single.id;
+      notifier.deleteTransaction(txId);
+      expect(notifier.state.transactions, isEmpty);
+      expect(notifier.state.totalSpentThisMonth, 0);
+      expect(notifier.state.dailySafeToSpend, 150000);
     });
   });
 }

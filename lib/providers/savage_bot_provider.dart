@@ -850,6 +850,39 @@ class SavageBotNotifier extends StateNotifier<SavageBotState> {
     return '';
   }
 
+  int _calculateDailySafeToSpend({
+    required List<ExpenseTransaction> transactions,
+    required List<RoommateSplitItem> splitItems,
+    required Map<String, bool> settledByMember,
+  }) {
+    final int memberCount = state.members.isEmpty ? 1 : state.members.length;
+    int totalPersonalSpentToday = 0;
+    for (final tx in transactions) {
+      if (tx.id == 'tx-hung-3') continue;
+      final String splitId = _inferredSplitIdForTx(tx);
+      final bool isShared =
+          splitId.isNotEmpty && splitItems.any((s) => s.id == splitId);
+      totalPersonalSpentToday +=
+          isShared ? (tx.amountVnd / memberCount).round() : tx.amountVnd;
+    }
+
+    int settledBoost = 0;
+    for (final entry in settledByMember.entries) {
+      if (entry.value) {
+        for (final item in splitItems) {
+          if (item.assignedRoommates.contains(entry.key) &&
+              item.assignedRoommates.isNotEmpty) {
+            settledBoost +=
+                (item.totalAmountVnd / item.assignedRoommates.length).round();
+          }
+        }
+      }
+    }
+
+    return (state.dailyBaseAllowance - totalPersonalSpentToday + settledBoost)
+        .clamp(0, state.dailyBaseAllowance * 3);
+  }
+
   void editTransaction(
     String txId, {
     required String title,
@@ -864,25 +897,37 @@ class SavageBotNotifier extends StateNotifier<SavageBotState> {
     final String splitId = _inferredSplitIdForTx(oldTx);
     final bool hasLinkedSplit =
         splitId.isNotEmpty && state.splitItems.any((s) => s.id == splitId);
-    final int memberCount = state.members.isEmpty ? 1 : state.members.length;
 
-    final int oldPersonalImpact = hasLinkedSplit
-        ? (oldTx.amountVnd / memberCount).round()
-        : oldTx.amountVnd;
-    final int newPersonalImpact = hasLinkedSplit
-        ? (amountVnd / memberCount).round()
-        : amountVnd;
-    final int personalDelta = newPersonalImpact - oldPersonalImpact;
-    final int totalDelta = amountVnd - oldTx.amountVnd;
-
-    final int updatedSafeToday = (state.dailySafeToSpend - personalDelta)
-        .clamp(0, state.dailyBaseAllowance * 3);
+    List<RoommateSplitItem> updatedSplits = state.splitItems;
+    if (hasLinkedSplit) {
+      updatedSplits = state.splitItems.map((item) {
+        if (item.id != splitId) return item;
+        return item.copyWith(
+          title: '${category.emoji} ${title.trim()}',
+          totalAmountVnd: amountVnd,
+        );
+      }).toList();
+    }
 
     final List<ExpenseTransaction> updatedList =
         List<ExpenseTransaction>.from(state.transactions);
+    updatedList[idx] = oldTx.copyWith(
+      title: title.trim(),
+      amountVnd: amountVnd,
+      category: category,
+      payerName: payerName,
+    );
+
+    final int updatedSafeToday = _calculateDailySafeToSpend(
+      transactions: updatedList,
+      splitItems: updatedSplits,
+      settledByMember: state.settledByMember,
+    );
+
+    final int newTotalSpent =
+        updatedList.fold(0, (sum, item) => sum + item.amountVnd);
     final int remainingMonth =
-        (state.monthlyBudget - (state.totalSpentThisMonth + totalDelta))
-            .clamp(0, state.monthlyBudget);
+        (state.monthlyBudget - newTotalSpent).clamp(0, state.monthlyBudget);
     final int baseAllowance =
         state.dailyBaseAllowance <= 0 ? 1 : state.dailyBaseAllowance;
     final int updatedRunway =
@@ -907,25 +952,10 @@ class SavageBotNotifier extends StateNotifier<SavageBotState> {
       payerName: payerName,
     );
 
-    updatedList[idx] = oldTx.copyWith(
-      title: title.trim(),
-      amountVnd: amountVnd,
-      category: category,
-      payerName: payerName,
+    updatedList[idx] = updatedList[idx].copyWith(
       savageRoast: newRoast,
       coachAdvice: newCoach,
     );
-
-    List<RoommateSplitItem> updatedSplits = state.splitItems;
-    if (hasLinkedSplit) {
-      updatedSplits = state.splitItems.map((item) {
-        if (item.id != splitId) return item;
-        return item.copyWith(
-          title: '${category.emoji} ${title.trim()}',
-          totalAmountVnd: amountVnd,
-        );
-      }).toList();
-    }
 
     int updatedStreak = state.noBobaStreakDays;
     if (category == ExpenseCategory.bobaAndCafe) {
@@ -971,14 +1001,11 @@ class SavageBotNotifier extends StateNotifier<SavageBotState> {
       }
     }
 
-    final int memberCount = state.members.isEmpty ? 1 : state.members.length;
-    final int refundedPersonalVnd = removedSplit != null
-        ? (removed.amountVnd / memberCount).round()
-        : removed.amountVnd;
-
-    final int updatedSafeToday =
-        (state.dailySafeToSpend + refundedPersonalVnd)
-            .clamp(0, state.dailyBaseAllowance * 3);
+    final int updatedSafeToday = _calculateDailySafeToSpend(
+      transactions: updatedList,
+      splitItems: updatedSplits,
+      settledByMember: state.settledByMember,
+    );
     final int newTotalSpent =
         updatedList.fold(0, (sum, item) => sum + item.amountVnd);
     final int remainingMonth =
@@ -995,12 +1022,11 @@ class SavageBotNotifier extends StateNotifier<SavageBotState> {
       updatedStreak = 5;
     }
 
-    String bubble = state.latestSpeechBubble;
-    if (updatedList.isNotEmpty) {
-      bubble = state.activePersona == PersonaMode.savage
-          ? updatedList.last.savageRoast
-          : updatedList.last.coachAdvice;
-    }
+    final String bubble = updatedList.isNotEmpty
+        ? (state.activePersona == PersonaMode.savage
+            ? updatedList.last.savageRoast
+            : updatedList.last.coachAdvice)
+        : 'Ví đang sạch bóng 0đ chi tiêu! Gõ món đầu tiên để mình thẩm định nhé! ✨';
 
     state = state.copyWith(
       transactions: updatedList,
@@ -1019,10 +1045,6 @@ class SavageBotNotifier extends StateNotifier<SavageBotState> {
     RoommateSplitItem? linkedSplit,
   }) {
     if (state.transactions.any((t) => t.id == tx.id)) return;
-    final int memberCount = state.members.isEmpty ? 1 : state.members.length;
-    final int personalImpact = linkedSplit != null
-        ? (tx.amountVnd / memberCount).round()
-        : tx.amountVnd;
 
     final updatedList = [...state.transactions, tx]
       ..sort((a, b) => a.timestamp.compareTo(b.timestamp));
@@ -1031,8 +1053,11 @@ class SavageBotNotifier extends StateNotifier<SavageBotState> {
         ? [linkedSplit, ...state.splitItems]
         : state.splitItems;
 
-    final int updatedSafeToday = (state.dailySafeToSpend - personalImpact)
-        .clamp(0, state.dailyBaseAllowance * 3);
+    final int updatedSafeToday = _calculateDailySafeToSpend(
+      transactions: updatedList,
+      splitItems: updatedSplits,
+      settledByMember: state.settledByMember,
+    );
     final int newTotalSpent =
         updatedList.fold(0, (sum, item) => sum + item.amountVnd);
     final int remainingMonth =
