@@ -52,14 +52,6 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
     'Thử gõ: "mua skin liên quân 150k", "cafe muối 32k"...',
   ];
 
-  static const List<({String label, String query, bool shared})>
-      _quickTapPresets = [
-    (label: 'Phở 45k', query: 'phở bò 45k', shared: false),
-    (label: 'Phê La 55k', query: 'trà sữa phê la 55k', shared: false),
-    (label: 'Grab 28k', query: 'grab đi học 28k', shared: false),
-    (label: 'Điện 350k', query: 'tiền điện 350k', shared: true),
-  ];
-
   @override
   void initState() {
     super.initState();
@@ -1045,7 +1037,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
                                       ),
                                       const SizedBox(height: 10),
                                       const Text(
-                                        'Mẹo: Gõ tự nhiên ("bún bò 45k", "trà sữa năm mươi lăm nghìn"), bấm Mic để nói, hoặc chạm chip gợi ý bên dưới.',
+                                        'Mẹo: Gõ tự nhiên ("bún bò 45k", "trà sữa năm mươi lăm nghìn") hoặc bấm Mic để nói.',
                                         textAlign: TextAlign.center,
                                         style: TextStyle(
                                           fontSize: 11,
@@ -1366,46 +1358,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
             ),
             const SizedBox(height: 8),
 
-            // 4. 1-TAP QUICK-TAP DEMO CHIPS
-            SizedBox(
-              height: 30,
-              child: ListView.separated(
-                scrollDirection: Axis.horizontal,
-                itemCount: _quickTapPresets.length,
-                separatorBuilder: (_, __) => const SizedBox(width: 6),
-                itemBuilder: (context, idx) {
-                  final preset = _quickTapPresets[idx];
-                  return GestureDetector(
-                    onTap: () => _submitExpense(
-                      preset.query,
-                      forceShared: preset.shared,
-                    ),
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 10,
-                        vertical: 5,
-                      ),
-                      decoration: BoxDecoration(
-                        color: surfaceColor,
-                        borderRadius: BorderRadius.circular(99),
-                        border: Border.all(color: borderColor),
-                      ),
-                      child: Text(
-                        preset.label,
-                        style: TextStyle(
-                          fontSize: 11,
-                          fontWeight: FontWeight.w700,
-                          color: textPrimary,
-                        ),
-                      ),
-                    ),
-                  );
-                },
-              ),
-            ),
-            const SizedBox(height: 8),
-
-            // 5. BOTTOM THUMB-ZONE SMART NLP DOCK
+            // 4. BOTTOM THUMB-ZONE SMART NLP DOCK
             Container(
               padding: const EdgeInsets.all(12),
               decoration: BoxDecoration(
