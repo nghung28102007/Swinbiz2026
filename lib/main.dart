@@ -75,6 +75,8 @@ class SavageBotApp extends ConsumerWidget {
 
 /// Centers the native mobile experience inside a phone frame on wide browsers
 /// without ever clipping on 720p stage projectors, while staying 100% full-screen on mobile.
+/// Preserves identical widget tree depth across viewport resizes (e.g. 1280x800 <-> 390x844)
+/// so Element state is never unmounted and mid-layout InheritedElement assertions never occur.
 class ResponsiveMobileFrame extends StatelessWidget {
   final Widget child;
 
@@ -82,60 +84,65 @@ class ResponsiveMobileFrame extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return LayoutBuilder(
-      builder: (context, constraints) {
-        if (constraints.maxWidth <= 520) {
-          return child;
-        }
-        final isDark = Theme.of(context).brightness == Brightness.dark;
-        final double frameHeight = math
-            .min(900.0, math.max(520.0, constraints.maxHeight - 24))
-            .clamp(0.0, constraints.maxHeight);
+    final Size screenSize = MediaQuery.sizeOf(context);
+    final bool isCompactMobile = screenSize.width <= 520;
+    final bool isDark = Theme.of(context).brightness == Brightness.dark;
 
-        return Container(
-          decoration: BoxDecoration(
-            gradient: RadialGradient(
-              center: const Alignment(0, -0.3),
-              radius: 1.1,
-              colors: isDark
-                  ? const [
-                      Color(0xFF1E1B4B),
-                      Color(0xFF020617),
-                    ]
-                  : const [
-                      Color(0xFFE0E7FF),
-                      Color(0xFFCBD5E1),
-                    ],
+    final double frameWidth = isCompactMobile ? screenSize.width : 440.0;
+    final double frameHeight = isCompactMobile
+        ? screenSize.height
+        : math
+            .min(900.0, math.max(520.0, screenSize.height - 24))
+            .clamp(0.0, screenSize.height);
+
+    return Container(
+      decoration: isCompactMobile
+          ? const BoxDecoration()
+          : BoxDecoration(
+              gradient: RadialGradient(
+                center: const Alignment(0, -0.3),
+                radius: 1.1,
+                colors: isDark
+                    ? const [
+                        Color(0xFF1E1B4B),
+                        Color(0xFF020617),
+                      ]
+                    : const [
+                        Color(0xFFE0E7FF),
+                        Color(0xFFCBD5E1),
+                      ],
+              ),
             ),
-          ),
-          child: Center(
-            child: Container(
-              width: 440,
-              height: frameHeight,
-              decoration: BoxDecoration(
-                borderRadius: BorderRadius.circular(38),
-                border: Border.all(
-                  color: isDark
-                      ? AppColors.darkBorderStrong
-                      : const Color(0xFF94A3B8),
-                  width: 6,
-                ),
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.black.withValues(alpha: 0.45),
-                    blurRadius: 40,
-                    offset: const Offset(0, 18),
+      child: Center(
+        child: Container(
+          width: frameWidth,
+          height: frameHeight,
+          decoration: isCompactMobile
+              ? const BoxDecoration()
+              : BoxDecoration(
+                  borderRadius: BorderRadius.circular(38),
+                  border: Border.all(
+                    color: isDark
+                        ? AppColors.darkBorderStrong
+                        : const Color(0xFF94A3B8),
+                    width: 6,
                   ),
-                ],
-              ),
-              child: ClipRRect(
-                borderRadius: BorderRadius.circular(32),
-                child: child,
-              ),
-            ),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withValues(alpha: 0.45),
+                      blurRadius: 40,
+                      offset: const Offset(0, 18),
+                    ),
+                  ],
+                ),
+          child: ClipRRect(
+            borderRadius: isCompactMobile
+                ? BorderRadius.zero
+                : BorderRadius.circular(32),
+            child: child,
           ),
-        );
-      },
+        ),
+      ),
     );
   }
 }

@@ -1,4 +1,6 @@
+import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:savage_bot/main.dart';
 import 'package:savage_bot/providers/savage_bot_provider.dart';
 import 'package:savage_bot/services/hybrid_nlp_service.dart';
 import 'package:savage_bot/services/vietqr_service.dart';
@@ -285,6 +287,46 @@ void main() {
       notifier.toggleMemberSettled('Hưng');
       expect(notifier.state.isMemberSettled('Hưng'), isFalse);
       expect(notifier.state.dailySafeToSpend, initialDaily);
+    });
+
+    testWidgets(
+        'ResponsiveMobileFrame resizes across 520px desktop/mobile breakpoint without InheritedElement assertion',
+        (tester) async {
+      await tester.binding.setSurfaceSize(const Size(1280, 800));
+      addTearDown(() => tester.binding.setSurfaceSize(null));
+
+      await tester.pumpWidget(
+        MaterialApp(
+          home: ResponsiveMobileFrame(
+            child: Builder(
+              builder: (context) {
+                final theme = Theme.of(context);
+                return Scaffold(
+                  body: Center(
+                    child: Text(
+                      'Viewport OK',
+                      style: theme.textTheme.bodyMedium,
+                    ),
+                  ),
+                );
+              },
+            ),
+          ),
+        ),
+      );
+      expect(find.text('Viewport OK'), findsOneWidget);
+
+      // Resize down to smartphone viewport (390x844) across the 520px threshold
+      await tester.binding.setSurfaceSize(const Size(390, 844));
+      await tester.pumpAndSettle();
+      expect(tester.takeException(), isNull);
+      expect(find.text('Viewport OK'), findsOneWidget);
+
+      // Resize back to desktop viewport (1280x800)
+      await tester.binding.setSurfaceSize(const Size(1280, 800));
+      await tester.pumpAndSettle();
+      expect(tester.takeException(), isNull);
+      expect(find.text('Viewport OK'), findsOneWidget);
     });
   });
 }
