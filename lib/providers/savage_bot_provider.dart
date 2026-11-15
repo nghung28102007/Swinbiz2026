@@ -730,6 +730,14 @@ class SavageBotNotifier extends StateNotifier<SavageBotState> {
     );
     _persistState();
 
+    final recentRoasts = state.transactions
+        .where((t) => t.id != newTx.id)
+        .toList()
+        .reversed
+        .take(3)
+        .map((t) => t.savageRoast)
+        .toList();
+
     if (enablePersistence) {
       _upgradeTransactionWithLiveAi(
         txId: newTx.id,
@@ -739,6 +747,7 @@ class SavageBotNotifier extends StateNotifier<SavageBotState> {
         remainingDailySafeVnd: updatedSafeToday,
         predictedRunwayDays: updatedRunwayDays,
         payerName: payer,
+        recentResponses: recentRoasts,
       );
     }
 
@@ -753,6 +762,7 @@ class SavageBotNotifier extends StateNotifier<SavageBotState> {
     required int remainingDailySafeVnd,
     required int predictedRunwayDays,
     required String payerName,
+    List<String> recentResponses = const [],
   }) async {
     final liveResult = await HybridNlpService.fetchLiveAiResponses(
       itemTitle: itemTitle,
@@ -761,6 +771,7 @@ class SavageBotNotifier extends StateNotifier<SavageBotState> {
       remainingDailySafeVnd: remainingDailySafeVnd,
       predictedRunwayDays: predictedRunwayDays,
       payerName: payerName,
+      recentResponses: recentResponses,
     );
     if (liveResult == null || !mounted) return;
 
@@ -1034,6 +1045,26 @@ class SavageBotNotifier extends StateNotifier<SavageBotState> {
       latestSpeechBubble: updatedBubble,
     );
     _persistState();
+
+    if (enablePersistence) {
+      final recentRoasts = updatedList
+          .where((t) => t.id != txId)
+          .toList()
+          .reversed
+          .take(3)
+          .map((t) => t.savageRoast)
+          .toList();
+      _upgradeTransactionWithLiveAi(
+        txId: txId,
+        itemTitle: title.trim(),
+        amountVnd: amountVnd,
+        category: category,
+        remainingDailySafeVnd: updatedSafeToday,
+        predictedRunwayDays: updatedRunway,
+        payerName: payerName,
+        recentResponses: recentRoasts,
+      );
+    }
   }
 
   ({ExpenseTransaction transaction, RoommateSplitItem? linkedSplit})?
