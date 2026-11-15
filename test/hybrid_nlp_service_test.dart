@@ -196,5 +196,95 @@ void main() {
       expect(notifier.state.tier2QueryCount, initialTier2 + 1);
       expect(notifier.state.splitItems.length, greaterThan(initialSplits));
     });
+
+    test('parses STT trailing currency words and expanded student vocabulary cleanly', () {
+      final sttDong =
+          HybridNlpService.parseNaturalInput('bún bò 45 nghìn đồng');
+      expect(sttDong, isNotNull);
+      expect(sttDong!.amountVnd, 45000);
+      expect(sttDong.itemTitle.toLowerCase().contains('đồng'), isFalse);
+
+      final tramNghin =
+          HybridNlpService.parseNaturalInput('mua áo hai trăm nghìn');
+      expect(tramNghin, isNotNull);
+      expect(tramNghin!.amountVnd, 200000);
+      expect(tramNghin.category, ExpenseCategory.entertainment);
+      expect(tramNghin.itemTitle.toLowerCase().contains('nghìn'), isFalse);
+
+      final trieuHaiTram =
+          HybridNlpService.parseNaturalInput('tiền phòng một triệu hai trăm nghìn');
+      expect(trieuHaiTram, isNotNull);
+      expect(trieuHaiTram!.amountVnd, 1200000);
+
+      final mixue = HybridNlpService.parseNaturalInput('mixue 25k');
+      expect(mixue?.category, ExpenseCategory.bobaAndCafe);
+
+      final huTieu = HybridNlpService.parseNaturalInput('hủ tiếu nam vang 40k');
+      expect(huTieu?.category, ExpenseCategory.foodAndDrink);
+    });
+
+    test('auto-detects roommate payer and synchronizes shared edit/delete/undo', () {
+      final notifier =
+          SavageBotNotifier(enablePersistence: false, startWithDemo: true);
+      final initialDaily = notifier.state.dailySafeToSpend;
+
+      // Auto-detects "Hưng" from natural input even when activePayer is "Duy"
+      notifier.addExpenseFromInput(
+        'Hưng mua nước giặt 90k',
+        isSharedRoomExpense: true,
+      );
+      final addedTx = notifier.state.transactions.last;
+      expect(addedTx.payerName, 'Hưng');
+      expect(addedTx.linkedSplitId, isNotNull);
+      expect(notifier.state.dailySafeToSpend, initialDaily - 30000);
+
+      // Editing shared expense updates both transaction and linked split item
+      notifier.editTransaction(
+        addedTx.id,
+        title: 'Nước giặt Omo',
+        amountVnd: 120000,
+        category: ExpenseCategory.dormAndUtilities,
+        payerName: 'Hưng',
+      );
+      expect(notifier.state.dailySafeToSpend, initialDaily - 40000);
+      final updatedSplit = notifier.state.splitItems
+          .firstWhere((s) => s.id == addedTx.linkedSplitId);
+      expect(updatedSplit.totalAmountVnd, 120000);
+
+      // Deleting shared expense removes linked split and supports 1-tap undo
+      final deleted = notifier.deleteTransaction(addedTx.id);
+      expect(deleted, isNotNull);
+      expect(notifier.state.dailySafeToSpend, initialDaily);
+      expect(
+        notifier.state.splitItems.any((s) => s.id == addedTx.linkedSplitId),
+        isFalse,
+      );
+
+      notifier.restoreDeletedTransaction(
+        deleted!.transaction,
+        linkedSplit: deleted.linkedSplit,
+      );
+      expect(notifier.state.dailySafeToSpend, initialDaily - 40000);
+      expect(
+        notifier.state.splitItems.any((s) => s.id == addedTx.linkedSplitId),
+        isTrue,
+      );
+    });
+
+    test('manual toggleMemberSettled settles and un-settles accurately', () {
+      final notifier =
+          SavageBotNotifier(enablePersistence: false, startWithDemo: true);
+      final initialDaily = notifier.state.dailySafeToSpend;
+      final hungShare = notifier.state.shareForRoommate('Hưng');
+
+      expect(notifier.state.isMemberSettled('Hưng'), isFalse);
+      notifier.toggleMemberSettled('Hưng');
+      expect(notifier.state.isMemberSettled('Hưng'), isTrue);
+      expect(notifier.state.dailySafeToSpend, initialDaily + hungShare);
+
+      notifier.toggleMemberSettled('Hưng');
+      expect(notifier.state.isMemberSettled('Hưng'), isFalse);
+      expect(notifier.state.dailySafeToSpend, initialDaily);
+    });
   });
 }

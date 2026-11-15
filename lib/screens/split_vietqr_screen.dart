@@ -3,6 +3,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:qr_flutter/qr_flutter.dart';
 import 'package:url_launcher/url_launcher.dart';
+import '../main.dart';
 import '../providers/savage_bot_provider.dart';
 import '../services/hybrid_nlp_service.dart';
 import '../services/vietqr_service.dart';
@@ -66,6 +67,53 @@ class _SplitVietQrScreenState extends ConsumerState<SplitVietQrScreen> {
         content: Text(
           'Đã sao chép $label: $value',
           style: const TextStyle(
+            color: Colors.white,
+            fontWeight: FontWeight.w700,
+          ),
+        ),
+      ),
+    );
+  }
+
+  void _copyGroupSplitSummary(SavageBotState botState, String bankName) {
+    HapticFeedback.mediumImpact();
+    final buffer = StringBuffer();
+    buffer.writeln(
+      '📢 CHỐT QUỸ ${botState.groupName.toUpperCase()} (${HybridNlpService.formatVnd(botState.totalSplitPoolVnd)})',
+    );
+    for (final item in botState.splitItems) {
+      buffer.writeln(
+        '• ${item.title}: ${HybridNlpService.formatVnd(item.totalAmountVnd)} (${item.assignedRoommates.join(', ')})',
+      );
+    }
+    buffer.writeln('---');
+    for (final m in botState.members) {
+      final share = botState.shareForRoommate(m);
+      final done = botState.isMemberSettled(m);
+      final memo = VietQrService.buildReconciliationMemo(
+        groupName: botState.groupName,
+        memberName: m,
+      );
+      buffer.writeln(
+        '👤 $m: ${HybridNlpService.formatVnd(share)} — ${done ? "Đã trả ✓" : "Chờ CK (ND: $memo)"}',
+      );
+    }
+    buffer.write(
+      '🏦 Nhận CK: $bankName • ${botState.bankAccount} (${botState.treasurerName})',
+    );
+
+    Clipboard.setData(ClipboardData(text: buffer.toString()));
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        behavior: SnackBarBehavior.floating,
+        duration: const Duration(seconds: 2),
+        backgroundColor: AppColors.violet,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(AppRadius.sm),
+        ),
+        content: const Text(
+          'Đã sao chép tin nhắn đòi nợ nhóm (dán ngay vào Zalo/Messenger)! 📋💸',
+          style: TextStyle(
             color: Colors.white,
             fontWeight: FontWeight.w700,
           ),
@@ -297,17 +345,27 @@ class _SplitVietQrScreenState extends ConsumerState<SplitVietQrScreen> {
                 decoration: BoxDecoration(
                   color: isMemberDone
                       ? AppColors.emerald.withValues(alpha: isSelected ? 0.28 : 0.16)
-                      : AppColors.amber.withValues(alpha: isSelected ? 0.25 : 0.14),
+                      : (members.length == 1
+                          ? AppColors.violet.withValues(alpha: isSelected ? 0.28 : 0.16)
+                          : AppColors.amber.withValues(alpha: isSelected ? 0.25 : 0.14)),
                   borderRadius: BorderRadius.circular(99),
                 ),
                 child: Text(
-                  isMemberDone ? '✓ Đã trả' : 'Chờ trả',
+                  members.length == 1
+                      ? 'Ví cá nhân'
+                      : (isMemberDone
+                          ? '✓ Đã trả'
+                          : (isTreasurer ? '👑 Thủ quỹ' : 'Chờ trả')),
                   style: TextStyle(
                     fontSize: 9.5,
                     fontWeight: FontWeight.w800,
                     color: isSelected
                         ? Colors.white
-                        : (isMemberDone ? AppColors.emerald : AppColors.amber),
+                        : (isMemberDone
+                            ? AppColors.emerald
+                            : (members.length == 1
+                                ? AppColors.violetLight
+                                : AppColors.amber)),
                   ),
                 ),
               ),
@@ -323,6 +381,78 @@ class _SplitVietQrScreenState extends ConsumerState<SplitVietQrScreen> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
+            // 0. PERSONAL MODE CONTEXTUAL UPGRADE BANNER
+            if (members.length == 1) ...[
+              Container(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 14,
+                  vertical: 10,
+                ),
+                decoration: BoxDecoration(
+                  color: AppColors.violet.withValues(alpha: 0.12),
+                  borderRadius: BorderRadius.circular(AppRadius.lg),
+                  border: Border.all(
+                    color: AppColors.violet.withValues(alpha: 0.35),
+                  ),
+                ),
+                child: Row(
+                  children: [
+                    const Icon(
+                      Icons.group_add_rounded,
+                      color: AppColors.violetLight,
+                      size: 20,
+                    ),
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            'Đang ở chế độ Ví Cá Nhân (${members.first})',
+                            style: TextStyle(
+                              fontSize: 12,
+                              fontWeight: FontWeight.w800,
+                              color: textPrimary,
+                            ),
+                          ),
+                          Text(
+                            'Thêm bạn cùng phòng để chia hóa đơn & thu hộ VietQR tự động',
+                            style: TextStyle(
+                              fontSize: 10.5,
+                              fontWeight: FontWeight.w600,
+                              color: textSecondary,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    FilledButton.tonal(
+                      onPressed: () => showGroupSettingsModal(context),
+                      style: FilledButton.styleFrom(
+                        backgroundColor: AppColors.violet,
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 10,
+                          vertical: 6,
+                        ),
+                        minimumSize: Size.zero,
+                        tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                      ),
+                      child: const Text(
+                        '+ Thêm bạn',
+                        style: TextStyle(
+                          fontSize: 11,
+                          fontWeight: FontWeight.w800,
+                          color: Colors.white,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 10),
+            ],
+
             // 1. TOP DYNAMIC ROOMMATE SUMMARY STRIP
             if (members.length <= 3)
               Row(
@@ -379,9 +509,50 @@ class _SplitVietQrScreenState extends ConsumerState<SplitVietQrScreen> {
                                 ),
                               ),
                             ),
+                            if (botState.splitItems.isNotEmpty) ...[
+                              const SizedBox(width: 6),
+                              InkWell(
+                                borderRadius: BorderRadius.circular(99),
+                                onTap: () => _copyGroupSplitSummary(
+                                  botState,
+                                  bankName,
+                                ),
+                                child: Container(
+                                  padding: const EdgeInsets.symmetric(
+                                    horizontal: 8,
+                                    vertical: 3,
+                                  ),
+                                  decoration: BoxDecoration(
+                                    color: AppColors.violet.withValues(
+                                      alpha: 0.14,
+                                    ),
+                                    borderRadius: BorderRadius.circular(99),
+                                  ),
+                                  child: const Row(
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      Icon(
+                                        Icons.copy_all_rounded,
+                                        size: 12,
+                                        color: AppColors.violetLight,
+                                      ),
+                                      SizedBox(width: 3),
+                                      Text(
+                                        'Copy đòi nợ',
+                                        style: TextStyle(
+                                          fontSize: 10.5,
+                                          fontWeight: FontWeight.w800,
+                                          color: AppColors.violetLight,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              ),
+                            ],
                             const SizedBox(width: 8),
                             Text(
-                              'Tổng quỹ: ${HybridNlpService.formatVnd(botState.totalSplitPoolVnd)}',
+                              'Tổng: ${HybridNlpService.formatCompactVnd(botState.totalSplitPoolVnd)}',
                               style: const TextStyle(
                                 fontSize: 11.5,
                                 fontWeight: FontWeight.w800,
@@ -515,7 +686,42 @@ class _SplitVietQrScreenState extends ConsumerState<SplitVietQrScreen> {
                                         borderRadius: BorderRadius.circular(8),
                                         onTap: () {
                                           HapticFeedback.lightImpact();
-                                          notifier.deleteSplitItem(item.id);
+                                          final removed = notifier
+                                              .deleteSplitItem(item.id);
+                                          if (removed != null && mounted) {
+                                            ScaffoldMessenger.of(context)
+                                                .showSnackBar(
+                                              SnackBar(
+                                                behavior:
+                                                    SnackBarBehavior.floating,
+                                                backgroundColor: AppColors
+                                                    .darkElevatedSurface,
+                                                shape: RoundedRectangleBorder(
+                                                  borderRadius:
+                                                      BorderRadius.circular(
+                                                    AppRadius.sm,
+                                                  ),
+                                                ),
+                                                content: Text(
+                                                  'Đã xóa khoản chia "${removed.title}"',
+                                                  style: const TextStyle(
+                                                    color: Colors.white,
+                                                    fontWeight: FontWeight.w700,
+                                                  ),
+                                                ),
+                                                action: SnackBarAction(
+                                                  label: 'Hoàn tác',
+                                                  textColor: AppColors.emerald,
+                                                  onPressed: () {
+                                                    notifier
+                                                        .restoreDeletedSplitItem(
+                                                      removed,
+                                                    );
+                                                  },
+                                                ),
+                                              ),
+                                            );
+                                          }
                                         },
                                         child: Padding(
                                           padding: const EdgeInsets.all(4),
@@ -668,29 +874,64 @@ class _SplitVietQrScreenState extends ConsumerState<SplitVietQrScreen> {
                               ),
                             ),
                             const SizedBox(width: 8),
-                            Container(
-                              padding: const EdgeInsets.symmetric(
-                                horizontal: 11,
-                                vertical: 5,
-                              ),
-                              decoration: BoxDecoration(
-                                color: isSelectedSettled
-                                    ? AppColors.emerald.withValues(alpha: 0.16)
-                                    : AppColors.amber.withValues(alpha: 0.16),
-                                borderRadius: BorderRadius.circular(99),
-                              ),
-                              child: Text(
-                                isSelectedSettled
-                                    ? 'Đã gạch nợ ✓'
-                                    : (botState.isWebhookListening
-                                        ? 'Đang đối soát...'
-                                        : 'Chờ trả'),
-                                style: TextStyle(
-                                  fontSize: 11,
-                                  fontWeight: FontWeight.w800,
-                                  color: isSelectedSettled
-                                      ? AppColors.emerald
-                                      : AppColors.amber,
+                            InkWell(
+                              borderRadius: BorderRadius.circular(99),
+                              onTap: roommateOwedAmount <= 0
+                                  ? null
+                                  : () {
+                                      HapticFeedback.mediumImpact();
+                                      notifier
+                                          .toggleMemberSettled(activeRoommate);
+                                    },
+                              child: Tooltip(
+                                message: isSelectedSettled
+                                    ? 'Chạm để đặt lại trạng thái Chờ trả'
+                                    : 'Chạm để đánh dấu Đã thu tiền mặt/CK',
+                                child: Container(
+                                  padding: const EdgeInsets.symmetric(
+                                    horizontal: 11,
+                                    vertical: 5,
+                                  ),
+                                  decoration: BoxDecoration(
+                                    color: isSelectedSettled
+                                        ? AppColors.emerald
+                                            .withValues(alpha: 0.16)
+                                        : AppColors.amber
+                                            .withValues(alpha: 0.16),
+                                    borderRadius: BorderRadius.circular(99),
+                                  ),
+                                  child: Row(
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      Text(
+                                        isSelectedSettled
+                                            ? 'Đã gạch nợ ✓'
+                                            : (botState.isWebhookListening
+                                                ? 'Đang đối soát...'
+                                                : 'Chờ trả'),
+                                        style: TextStyle(
+                                          fontSize: 11,
+                                          fontWeight: FontWeight.w800,
+                                          color: isSelectedSettled
+                                              ? AppColors.emerald
+                                              : AppColors.amber,
+                                        ),
+                                      ),
+                                      if (roommateOwedAmount > 0 &&
+                                          !botState.isWebhookListening) ...[
+                                        const SizedBox(width: 4),
+                                        Icon(
+                                          isSelectedSettled
+                                              ? Icons.replay_rounded
+                                              : Icons.check_circle_outline_rounded,
+                                          size: 12,
+                                          color: isSelectedSettled
+                                              ? AppColors.emerald
+                                              : AppColors.amber,
+                                        ),
+                                      ],
+                                    ],
+                                  ),
                                 ),
                               ),
                             ),

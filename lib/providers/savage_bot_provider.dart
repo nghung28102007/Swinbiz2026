@@ -250,6 +250,44 @@ class SavageBotState {
   int get totalSplitPoolVnd =>
       splitItems.fold(0, (sum, item) => sum + item.totalAmountVnd);
 
+  int get averageTransactionVnd => transactions.isEmpty
+      ? 0
+      : (totalSpentThisMonth / transactions.length).round();
+
+  ExpenseCategory? get topSpendingCategory {
+    if (transactions.isEmpty) return null;
+    final totals = categoryTotals;
+    ExpenseCategory? topCat;
+    int maxVal = 0;
+    for (final entry in totals.entries) {
+      if (entry.value > maxVal) {
+        maxVal = entry.value;
+        topCat = entry.key;
+      }
+    }
+    return topCat;
+  }
+
+  int get unsettledRoommateTotalVnd {
+    int sum = 0;
+    for (final m in members) {
+      if (!isMemberSettled(m)) {
+        sum += shareForRoommate(m);
+      }
+    }
+    return sum;
+  }
+
+  Map<String, int> get payerTotals {
+    final Map<String, int> map = {
+      for (final m in members) m: 0,
+    };
+    for (final tx in transactions) {
+      map[tx.payerName] = (map[tx.payerName] ?? 0) + tx.amountVnd;
+    }
+    return map;
+  }
+
   SavageBotState copyWith({
     String? groupName,
     List<String>? members,
@@ -597,7 +635,9 @@ class SavageBotNotifier extends StateNotifier<SavageBotState> {
     final parsed = HybridNlpService.parseNaturalInput(rawInput);
     if (parsed == null) return false;
 
-    final String payer = customPayer ?? state.activePayer;
+    final String? detectedMember =
+        HybridNlpService.detectMemberInQuery(rawInput, state.members);
+    final String payer = customPayer ?? detectedMember ?? state.activePayer;
     final int memberCount = state.members.isEmpty ? 1 : state.members.length;
     final int personalImpactVnd = isSharedRoomExpense
         ? (parsed.amountVnd / memberCount).round()
@@ -640,6 +680,7 @@ class SavageBotNotifier extends StateNotifier<SavageBotState> {
     );
 
     final nowMs = DateTime.now().millisecondsSinceEpoch;
+    final String? splitId = isSharedRoomExpense ? 'split-$nowMs' : null;
     final newTx = ExpenseTransaction(
       id: 'tx-$nowMs',
       rawInput: rawInput.trim(),
@@ -653,13 +694,14 @@ class SavageBotNotifier extends StateNotifier<SavageBotState> {
       savageRoast: roastText,
       coachAdvice: coachText,
       isSettled: !isSharedRoomExpense,
+      linkedSplitId: splitId,
     );
 
     List<RoommateSplitItem> updatedSplits = state.splitItems;
     Map<String, bool> updatedSettled = state.settledByMember;
-    if (isSharedRoomExpense) {
+    if (isSharedRoomExpense && splitId != null) {
       final newSplit = RoommateSplitItem(
-        id: 'split-$nowMs',
+        id: splitId,
         title: '${parsed.category.emoji} ${parsed.itemTitle}',
         totalAmountVnd: parsed.amountVnd,
         assignedRoommates: List<String>.from(state.members),
@@ -707,9 +749,13 @@ class SavageBotNotifier extends StateNotifier<SavageBotState> {
 
     final List<ExpenseTransaction> ocrTransactions = [];
     final List<RoommateSplitItem> addedSplits = [];
+    bool hasBobaItem = false;
 
     for (int i = 0; i < template.items.length; i++) {
       final item = template.items[i];
+      if (item.category == ExpenseCategory.bobaAndCafe) {
+        hasBobaItem = true;
+      }
       runningTotalSpent += item.amount;
       final int personalImpact = isDormTemplate
           ? (item.amount / memberCount).round()
@@ -720,6 +766,7 @@ class SavageBotNotifier extends StateNotifier<SavageBotState> {
           (state.monthlyBudget - runningTotalSpent).clamp(0, state.monthlyBudget);
       final int runway =
           (remainingMonth / baseAllowance).floor().clamp(1, 30);
+      final String? splitId = isDormTemplate ? 'split-ocr-$baseMs-$i' : null;
 
       ocrTransactions.add(
         ExpenseTransaction(
@@ -751,13 +798,14 @@ class SavageBotNotifier extends StateNotifier<SavageBotState> {
             payerName: payer,
           ),
           isSettled: !isDormTemplate,
+          linkedSplitId: splitId,
         ),
       );
 
-      if (isDormTemplate) {
+      if (isDormTemplate && splitId != null) {
         addedSplits.add(
           RoommateSplitItem(
-            id: 'split-ocr-$baseMs-$i',
+            id: splitId,
             title: '${item.category.emoji} ${item.title}',
             totalAmountVnd: item.amount,
             assignedRoommates: List<String>.from(state.members),
@@ -784,11 +832,22 @@ class SavageBotNotifier extends StateNotifier<SavageBotState> {
       settledByMember: isDormTemplate ? const {} : null,
       dailySafeToSpend: runningSafeToday,
       predictedRunwayDays: finalRunway,
+      noBobaStreakDays: hasBobaItem ? 0 : state.noBobaStreakDays,
       tier2QueryCount: state.tier2QueryCount + 1,
       latestSpeechBubble:
           state.activePersona == PersonaMode.savage ? summaryRoast : summaryCoach,
     );
     _persistState();
+  }
+
+  String _inferredSplitIdForTx(ExpenseTransaction tx) {
+    if (tx.linkedSplitId != null && tx.linkedSplitId!.isNotEmpty) {
+      return tx.linkedSplitId!;
+    }
+    if (tx.id.startsWith('tx-')) {
+      return 'split-${tx.id.substring(3)}';
+    }
+    return '';
   }
 
   void editTransaction(
@@ -802,63 +861,124 @@ class SavageBotNotifier extends StateNotifier<SavageBotState> {
     if (idx == -1) return;
 
     final oldTx = state.transactions[idx];
-    final int delta = amountVnd - oldTx.amountVnd;
-    final int updatedSafeToday =
-        (state.dailySafeToSpend - delta).clamp(0, state.dailyBaseAllowance);
+    final String splitId = _inferredSplitIdForTx(oldTx);
+    final bool hasLinkedSplit =
+        splitId.isNotEmpty && state.splitItems.any((s) => s.id == splitId);
+    final int memberCount = state.members.isEmpty ? 1 : state.members.length;
+
+    final int oldPersonalImpact = hasLinkedSplit
+        ? (oldTx.amountVnd / memberCount).round()
+        : oldTx.amountVnd;
+    final int newPersonalImpact = hasLinkedSplit
+        ? (amountVnd / memberCount).round()
+        : amountVnd;
+    final int personalDelta = newPersonalImpact - oldPersonalImpact;
+    final int totalDelta = amountVnd - oldTx.amountVnd;
+
+    final int updatedSafeToday = (state.dailySafeToSpend - personalDelta)
+        .clamp(0, state.dailyBaseAllowance * 3);
 
     final List<ExpenseTransaction> updatedList =
         List<ExpenseTransaction>.from(state.transactions);
     final int remainingMonth =
-        (state.monthlyBudget - (state.totalSpentThisMonth + delta))
+        (state.monthlyBudget - (state.totalSpentThisMonth + totalDelta))
             .clamp(0, state.monthlyBudget);
     final int baseAllowance =
         state.dailyBaseAllowance <= 0 ? 1 : state.dailyBaseAllowance;
     final int updatedRunway =
         (remainingMonth / baseAllowance).floor().clamp(1, 30);
 
+    final String newRoast = HybridNlpService.generatePersonaResponse(
+      mode: PersonaMode.savage,
+      itemTitle: title.trim(),
+      amountVnd: amountVnd,
+      category: category,
+      remainingDailySafeVnd: updatedSafeToday,
+      predictedRunwayDays: updatedRunway,
+      payerName: payerName,
+    );
+    final String newCoach = HybridNlpService.generatePersonaResponse(
+      mode: PersonaMode.coach,
+      itemTitle: title.trim(),
+      amountVnd: amountVnd,
+      category: category,
+      remainingDailySafeVnd: updatedSafeToday,
+      predictedRunwayDays: updatedRunway,
+      payerName: payerName,
+    );
+
     updatedList[idx] = oldTx.copyWith(
       title: title.trim(),
       amountVnd: amountVnd,
       category: category,
       payerName: payerName,
-      savageRoast: HybridNlpService.generatePersonaResponse(
-        mode: PersonaMode.savage,
-        itemTitle: title.trim(),
-        amountVnd: amountVnd,
-        category: category,
-        remainingDailySafeVnd: updatedSafeToday,
-        predictedRunwayDays: updatedRunway,
-        payerName: payerName,
-      ),
-      coachAdvice: HybridNlpService.generatePersonaResponse(
-        mode: PersonaMode.coach,
-        itemTitle: title.trim(),
-        amountVnd: amountVnd,
-        category: category,
-        remainingDailySafeVnd: updatedSafeToday,
-        predictedRunwayDays: updatedRunway,
-        payerName: payerName,
-      ),
+      savageRoast: newRoast,
+      coachAdvice: newCoach,
     );
+
+    List<RoommateSplitItem> updatedSplits = state.splitItems;
+    if (hasLinkedSplit) {
+      updatedSplits = state.splitItems.map((item) {
+        if (item.id != splitId) return item;
+        return item.copyWith(
+          title: '${category.emoji} ${title.trim()}',
+          totalAmountVnd: amountVnd,
+        );
+      }).toList();
+    }
+
+    int updatedStreak = state.noBobaStreakDays;
+    if (category == ExpenseCategory.bobaAndCafe) {
+      updatedStreak = 0;
+    } else if (oldTx.category == ExpenseCategory.bobaAndCafe &&
+        !updatedList.any((t) => t.category == ExpenseCategory.bobaAndCafe)) {
+      updatedStreak = state.noBobaStreakDays == 0 ? 5 : state.noBobaStreakDays;
+    }
+
+    final bool isLatest = idx == updatedList.length - 1;
+    final String updatedBubble = isLatest
+        ? (state.activePersona == PersonaMode.savage ? newRoast : newCoach)
+        : state.latestSpeechBubble;
 
     state = state.copyWith(
       transactions: updatedList,
+      splitItems: updatedSplits,
       dailySafeToSpend: updatedSafeToday,
       predictedRunwayDays: updatedRunway,
+      noBobaStreakDays: updatedStreak,
+      latestSpeechBubble: updatedBubble,
     );
     _persistState();
   }
 
-  void deleteTransaction(String txId) {
+  ({ExpenseTransaction transaction, RoommateSplitItem? linkedSplit})?
+      deleteTransaction(String txId) {
     final idx = state.transactions.indexWhere((t) => t.id == txId);
-    if (idx == -1) return;
+    if (idx == -1) return null;
     final removed = state.transactions[idx];
     final updatedList = List<ExpenseTransaction>.from(state.transactions)
       ..removeAt(idx);
 
+    final String splitId = _inferredSplitIdForTx(removed);
+    RoommateSplitItem? removedSplit;
+    List<RoommateSplitItem> updatedSplits = state.splitItems;
+    if (splitId.isNotEmpty) {
+      final splitIdx = state.splitItems.indexWhere((s) => s.id == splitId);
+      if (splitIdx != -1) {
+        removedSplit = state.splitItems[splitIdx];
+        updatedSplits = List<RoommateSplitItem>.from(state.splitItems)
+          ..removeAt(splitIdx);
+      }
+    }
+
+    final int memberCount = state.members.isEmpty ? 1 : state.members.length;
+    final int refundedPersonalVnd = removedSplit != null
+        ? (removed.amountVnd / memberCount).round()
+        : removed.amountVnd;
+
     final int updatedSafeToday =
-        (state.dailySafeToSpend + removed.amountVnd)
-            .clamp(0, state.dailyBaseAllowance);
+        (state.dailySafeToSpend + refundedPersonalVnd)
+            .clamp(0, state.dailyBaseAllowance * 3);
     final int newTotalSpent =
         updatedList.fold(0, (sum, item) => sum + item.amountVnd);
     final int remainingMonth =
@@ -867,6 +987,13 @@ class SavageBotNotifier extends StateNotifier<SavageBotState> {
         state.dailyBaseAllowance <= 0 ? 1 : state.dailyBaseAllowance;
     final int updatedRunway =
         (remainingMonth / baseAllowance).floor().clamp(1, 30);
+
+    int updatedStreak = state.noBobaStreakDays;
+    if (removed.category == ExpenseCategory.bobaAndCafe &&
+        !updatedList.any((t) => t.category == ExpenseCategory.bobaAndCafe) &&
+        updatedStreak == 0) {
+      updatedStreak = 5;
+    }
 
     String bubble = state.latestSpeechBubble;
     if (updatedList.isNotEmpty) {
@@ -877,9 +1004,55 @@ class SavageBotNotifier extends StateNotifier<SavageBotState> {
 
     state = state.copyWith(
       transactions: updatedList,
+      splitItems: updatedSplits,
       dailySafeToSpend: updatedSafeToday,
       predictedRunwayDays: updatedRunway,
+      noBobaStreakDays: updatedStreak,
       latestSpeechBubble: bubble,
+    );
+    _persistState();
+    return (transaction: removed, linkedSplit: removedSplit);
+  }
+
+  void restoreDeletedTransaction(
+    ExpenseTransaction tx, {
+    RoommateSplitItem? linkedSplit,
+  }) {
+    if (state.transactions.any((t) => t.id == tx.id)) return;
+    final int memberCount = state.members.isEmpty ? 1 : state.members.length;
+    final int personalImpact = linkedSplit != null
+        ? (tx.amountVnd / memberCount).round()
+        : tx.amountVnd;
+
+    final updatedList = [...state.transactions, tx]
+      ..sort((a, b) => a.timestamp.compareTo(b.timestamp));
+    final List<RoommateSplitItem> updatedSplits = linkedSplit != null &&
+            !state.splitItems.any((s) => s.id == linkedSplit.id)
+        ? [linkedSplit, ...state.splitItems]
+        : state.splitItems;
+
+    final int updatedSafeToday = (state.dailySafeToSpend - personalImpact)
+        .clamp(0, state.dailyBaseAllowance * 3);
+    final int newTotalSpent =
+        updatedList.fold(0, (sum, item) => sum + item.amountVnd);
+    final int remainingMonth =
+        (state.monthlyBudget - newTotalSpent).clamp(0, state.monthlyBudget);
+    final int baseAllowance =
+        state.dailyBaseAllowance <= 0 ? 1 : state.dailyBaseAllowance;
+    final int updatedRunway =
+        (remainingMonth / baseAllowance).floor().clamp(1, 30);
+
+    state = state.copyWith(
+      transactions: updatedList,
+      splitItems: updatedSplits,
+      dailySafeToSpend: updatedSafeToday,
+      predictedRunwayDays: updatedRunway,
+      noBobaStreakDays: tx.category == ExpenseCategory.bobaAndCafe
+          ? 0
+          : state.noBobaStreakDays,
+      latestSpeechBubble: state.activePersona == PersonaMode.savage
+          ? tx.savageRoast
+          : tx.coachAdvice,
     );
     _persistState();
   }
@@ -898,10 +1071,23 @@ class SavageBotNotifier extends StateNotifier<SavageBotState> {
     _persistState();
   }
 
-  void deleteSplitItem(String itemId) {
-    final updated = state.splitItems.where((i) => i.id != itemId).toList();
+  RoommateSplitItem? deleteSplitItem(String itemId) {
+    final idx = state.splitItems.indexWhere((i) => i.id == itemId);
+    if (idx == -1) return null;
+    final removed = state.splitItems[idx];
+    final updated = List<RoommateSplitItem>.from(state.splitItems)
+      ..removeAt(idx);
     state = state.copyWith(
       splitItems: updated,
+    );
+    _persistState();
+    return removed;
+  }
+
+  void restoreDeletedSplitItem(RoommateSplitItem item) {
+    if (state.splitItems.any((s) => s.id == item.id)) return;
+    state = state.copyWith(
+      splitItems: [item, ...state.splitItems],
     );
     _persistState();
   }
@@ -934,6 +1120,55 @@ class SavageBotNotifier extends StateNotifier<SavageBotState> {
     state = state.copyWith(
       selectedRoommateForQr: roommate,
     );
+    _persistState();
+  }
+
+  /// Allows Treasurer/User to manually mark a roommate as settled or un-settled (e.g. cash/Momo or test reset).
+  void toggleMemberSettled(String member) {
+    final bool currentlySettled = state.isMemberSettled(member);
+    final int shareAmount = state.shareForRoommate(member);
+    final String memo = VietQrService.buildReconciliationMemo(
+      groupName: state.groupName,
+      memberName: member,
+    );
+
+    final Map<String, bool> updatedSettled =
+        Map<String, bool>.from(state.settledByMember)
+          ..[member] = !currentlySettled;
+
+    if (!currentlySettled) {
+      final int boostedSafe = (state.dailySafeToSpend + shareAmount)
+          .clamp(0, state.dailyBaseAllowance * 3);
+      final int boostedRunway = (state.predictedRunwayDays + 2).clamp(1, 30);
+      final updatedTransactions = state.transactions.map((tx) {
+        if (!tx.isSettled && tx.payerName == member) {
+          return tx.copyWith(isSettled: true);
+        }
+        return tx;
+      }).toList();
+
+      state = state.copyWith(
+        settledByMember: updatedSettled,
+        dailySafeToSpend: boostedSafe,
+        predictedRunwayDays: boostedRunway,
+        transactions: updatedTransactions,
+        latestSpeechBubble: state.activePersona == PersonaMode.savage
+            ? 'Ting ting! Đã chốt gạch nợ ${HybridNlpService.formatVnd(shareAmount)} cho $member (mã $memo)! Ví hồi máu cực mạnh! 🎉💸'
+            : 'Đã đánh dấu hoàn tất khoản ${HybridNlpService.formatVnd(shareAmount)} của $member (mã $memo). ✅',
+      );
+    } else {
+      final int revertedSafe = (state.dailySafeToSpend - shareAmount)
+          .clamp(0, state.dailyBaseAllowance * 3);
+      final int revertedRunway = (state.predictedRunwayDays - 2).clamp(1, 30);
+
+      state = state.copyWith(
+        settledByMember: updatedSettled,
+        dailySafeToSpend: revertedSafe,
+        predictedRunwayDays: revertedRunway,
+        latestSpeechBubble:
+            'Đã đặt lại trạng thái của $member về "Chờ trả" (${HybridNlpService.formatVnd(shareAmount)}). 🔄',
+      );
+    }
     _persistState();
   }
 
@@ -1025,7 +1260,7 @@ class SavageBotNotifier extends StateNotifier<SavageBotState> {
                 : cleanedMembers.first);
 
     final int validBudget = monthlyBudget.clamp(500000, 100000000);
-    final int newDailyBase = (validBudget / 25).round().clamp(20000, 10000000);
+    final int newDailyBase = (validBudget / 30).round().clamp(20000, 10000000);
 
     final int spentToday = (state.dailyBaseAllowance - state.dailySafeToSpend)
         .clamp(0, validBudget);

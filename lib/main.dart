@@ -162,13 +162,98 @@ class _MainNavigationShellState extends ConsumerState<MainNavigationShell> {
   }
 
   void _openGroupSettingsModal(BuildContext context) {
-    HapticFeedback.selectionClick();
-    showModalBottomSheet<void>(
-      context: context,
-      isScrollControlled: true,
-      backgroundColor: Colors.transparent,
-      builder: (_) => const _GroupSettingsSheet(),
-    );
+    showGroupSettingsModal(context);
+  }
+
+  Future<void> _confirmAndResetWallet(
+    BuildContext context,
+    SavageBotState botState,
+    SavageBotNotifier notifier,
+    String choice,
+  ) async {
+    HapticFeedback.lightImpact();
+    final bool isFresh = choice == 'fresh';
+    if (botState.transactions.isNotEmpty) {
+      final bool? confirmed = await showDialog<bool>(
+        context: context,
+        builder: (ctx) {
+          final isDark = Theme.of(ctx).brightness == Brightness.dark;
+          return AlertDialog(
+            backgroundColor: AppColors.surface(isDark),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(AppRadius.xl),
+            ),
+            title: Row(
+              children: [
+                Icon(
+                  isFresh
+                      ? Icons.cleaning_services_rounded
+                      : Icons.play_circle_outline_rounded,
+                  color: isFresh ? AppColors.emerald : AppColors.violetLight,
+                  size: 22,
+                ),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Text(
+                    isFresh
+                        ? 'Tạo lại Ví Trắng mới?'
+                        : 'Nạp kịch bản Demo Phòng 302?',
+                    style: TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.w900,
+                      color: AppColors.textPrimary(isDark),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+            content: Text(
+              isFresh
+                  ? 'Hiện có ${botState.transactions.length} giao dịch trong ví. Tạo lại Ví Trắng sẽ xóa dữ liệu hiện tại để bạn thiết lập ví mới từ đầu.'
+                  : 'Dữ liệu hiện tại (${botState.transactions.length} giao dịch) sẽ được thay bằng dữ liệu mẫu Phòng 302 phục vụ thuyết trình.',
+              style: TextStyle(
+                fontSize: 13,
+                height: 1.45,
+                color: AppColors.textSecondary(isDark),
+              ),
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.of(ctx).pop(false),
+                child: Text(
+                  'Hủy',
+                  style: TextStyle(
+                    fontWeight: FontWeight.w700,
+                    color: AppColors.textSecondary(isDark),
+                  ),
+                ),
+              ),
+              FilledButton(
+                onPressed: () => Navigator.of(ctx).pop(true),
+                style: FilledButton.styleFrom(
+                  backgroundColor:
+                      isFresh ? AppColors.emerald : AppColors.violet,
+                ),
+                child: Text(
+                  isFresh ? 'Tạo Ví Trắng' : 'Nạp Demo',
+                  style: const TextStyle(
+                    fontWeight: FontWeight.w800,
+                    color: Colors.white,
+                  ),
+                ),
+              ),
+            ],
+          );
+        },
+      );
+      if (confirmed != true) return;
+    }
+
+    if (isFresh) {
+      notifier.startFreshUserReset();
+    } else {
+      notifier.resetDemo();
+    }
   }
 
   @override
@@ -315,12 +400,7 @@ class _MainNavigationShellState extends ConsumerState<MainNavigationShell> {
             tooltip: 'Khởi tạo lại ví / Demo',
             icon: const Icon(Icons.restart_alt_rounded, size: 20),
             onSelected: (choice) {
-              HapticFeedback.lightImpact();
-              if (choice == 'fresh') {
-                notifier.startFreshUserReset();
-              } else if (choice == 'demo') {
-                notifier.resetDemo();
-              }
+              _confirmAndResetWallet(context, botState, notifier, choice);
             },
             itemBuilder: (_) => const [
               PopupMenuItem<String>(
@@ -363,23 +443,59 @@ class _MainNavigationShellState extends ConsumerState<MainNavigationShell> {
         height: 66,
         backgroundColor: isDark ? AppColors.darkNavigationBg : Colors.white,
         indicatorColor: AppColors.emerald.withValues(alpha: 0.2),
-        destinations: const [
-          NavigationDestination(
+        destinations: [
+          const NavigationDestination(
             icon: Icon(Icons.local_fire_department_rounded),
             label: 'AI Trợ Lý',
           ),
           NavigationDestination(
-            icon: Icon(Icons.qr_code_2_rounded),
+            icon: Badge(
+              isLabelVisible: botState.splitItems.isNotEmpty &&
+                  botState.unsettledRoommateTotalVnd > 0,
+              backgroundColor: AppColors.violet,
+              label: Text(
+                '${botState.splitItems.length}',
+                style: const TextStyle(
+                  fontSize: 9.5,
+                  fontWeight: FontWeight.w800,
+                  color: Colors.white,
+                ),
+              ),
+              child: const Icon(Icons.qr_code_2_rounded),
+            ),
             label: 'Chia Tiền QR',
           ),
           NavigationDestination(
-            icon: Icon(Icons.analytics_rounded),
+            icon: Badge(
+              isLabelVisible: botState.predictedRunwayDays <= 10,
+              backgroundColor: AppColors.rose,
+              label: const Text(
+                '!',
+                style: TextStyle(
+                  fontSize: 9.5,
+                  fontWeight: FontWeight.w900,
+                  color: Colors.white,
+                ),
+              ),
+              child: const Icon(Icons.analytics_rounded),
+            ),
             label: 'Phân Tích Ví',
           ),
         ],
       ),
     );
   }
+}
+
+/// Opens the interactive Group & VietQR configuration sheet from any screen.
+void showGroupSettingsModal(BuildContext context) {
+  HapticFeedback.selectionClick();
+  showModalBottomSheet<void>(
+    context: context,
+    isScrollControlled: true,
+    backgroundColor: Colors.transparent,
+    builder: (_) => const _GroupSettingsSheet(),
+  );
 }
 
 /// Interactive Bottom Sheet to customize Group Name, Members, Budget & Bank Info live.
@@ -529,6 +645,15 @@ class _GroupSettingsSheetState extends ConsumerState<_GroupSettingsSheet> {
                   fontSize: 12.5,
                   fontWeight: FontWeight.w800,
                   color: textPrimary,
+                ),
+              ),
+              const SizedBox(height: 3),
+              Text(
+                '💡 Chạm vào tên thành viên để chọn làm 👑 Thủ quỹ nhận VietQR',
+                style: TextStyle(
+                  fontSize: 11,
+                  fontWeight: FontWeight.w600,
+                  color: textSecondary,
                 ),
               ),
               const SizedBox(height: 8),

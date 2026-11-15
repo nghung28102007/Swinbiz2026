@@ -86,14 +86,21 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
   void _onInputChanged() {
     final raw = _inputController.text;
     final parsed = HybridNlpService.parseNaturalInput(raw);
+    final members = ref.read(savageBotProvider).members;
     setState(() {
       _liveParsedPreview = parsed;
       if (raw.trim().isEmpty) {
         _isSharedRoomExpense = false;
         _sharedToggleManualOverride = false;
       } else if (!_sharedToggleManualOverride && parsed != null) {
-        _isSharedRoomExpense =
-            parsed.category == ExpenseCategory.dormAndUtilities;
+        final bool hasExplicitShareWords =
+            HybridNlpService.isLikelySharedExpense(
+          raw,
+          ExpenseCategory.other,
+        );
+        _isSharedRoomExpense = hasExplicitShareWords ||
+            (members.length > 1 &&
+                HybridNlpService.isLikelySharedExpense(raw, parsed.category));
       }
     });
   }
@@ -111,13 +118,92 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
     super.dispose();
   }
 
+  void _copyRoastCard(
+    ExpenseTransaction tx,
+    String reply,
+    bool isSavage,
+  ) {
+    HapticFeedback.selectionClick();
+    final modeTag = isSavage ? '🔥 SAVAGE ROAST' : '🌱 QUÂN SƯ AI';
+    final shareText =
+        '[$modeTag • SavageBot]\n'
+        '💸 Khoản chi: ${tx.title} (-${HybridNlpService.formatVnd(tx.amountVnd)})\n'
+        '👤 Người chi: ${tx.payerName}\n'
+        '💬 AI phán: "$reply"';
+    Clipboard.setData(ClipboardData(text: shareText));
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        behavior: SnackBarBehavior.floating,
+        duration: const Duration(seconds: 2),
+        backgroundColor: isSavage ? AppColors.rose : AppColors.emerald,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(AppRadius.sm),
+        ),
+        content: Text(
+          isSavage
+              ? 'Đã sao chép thẻ Roast AI để khoe nhóm chat! 🔥📋'
+              : 'Đã sao chép lời khuyên Quân Sư AI! 🌱📋',
+          style: const TextStyle(
+            color: Colors.white,
+            fontWeight: FontWeight.w700,
+          ),
+        ),
+      ),
+    );
+  }
+
+  void _handleDeleteTransaction(
+    String txId,
+    SavageBotNotifier notifier,
+  ) {
+    HapticFeedback.mediumImpact();
+    final deleted = notifier.deleteTransaction(txId);
+    if (deleted != null && mounted) {
+      ScaffoldMessenger.of(context).clearSnackBars();
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          behavior: SnackBarBehavior.floating,
+          backgroundColor: AppColors.darkElevatedSurface,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(AppRadius.sm),
+          ),
+          content: Text(
+            'Đã xóa "${deleted.transaction.title}" (${HybridNlpService.formatVnd(deleted.transaction.amountVnd)})',
+            style: const TextStyle(
+              color: Colors.white,
+              fontWeight: FontWeight.w700,
+            ),
+          ),
+          action: SnackBarAction(
+            label: 'Hoàn tác',
+            textColor: AppColors.emerald,
+            onPressed: () {
+              notifier.restoreDeletedTransaction(
+                deleted.transaction,
+                linkedSplit: deleted.linkedSplit,
+              );
+            },
+          ),
+        ),
+      );
+    }
+  }
+
   void _submitExpense(String rawText, {bool? forceShared}) {
     final notifier = ref.read(savageBotProvider.notifier);
+    final botState = ref.read(savageBotProvider);
     final parsed = HybridNlpService.parseNaturalInput(rawText);
-    final bool shouldShare = forceShared ??
-        (_sharedToggleManualOverride
+    final bool isGroup = botState.members.length > 1;
+    final bool shouldShare = forceShared != null
+        ? (forceShared && isGroup)
+        : (_sharedToggleManualOverride
             ? _isSharedRoomExpense
-            : (parsed?.category == ExpenseCategory.dormAndUtilities ||
+            : ((isGroup &&
+                    parsed != null &&
+                    HybridNlpService.isLikelySharedExpense(
+                      rawText,
+                      parsed.category,
+                    )) ||
                 _isSharedRoomExpense));
 
     final success = notifier.addExpenseFromInput(
@@ -643,13 +729,19 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
                                   const SizedBox(width: 6),
                                   Expanded(
                                     child: Text(
-                                      'Hôm nay tiêu thêm được',
+                                      botState.dailySafeToSpend == 0 &&
+                                              botState.totalSpentThisMonth > 0
+                                          ? '⚠️ Đã chạm trần hạn mức ngày!'
+                                          : 'Hôm nay tiêu thêm được',
                                       maxLines: 1,
                                       overflow: TextOverflow.ellipsis,
                                       style: TextStyle(
                                         fontSize: 12,
                                         fontWeight: FontWeight.w700,
-                                        color: textSecondary,
+                                        color: botState.dailySafeToSpend == 0 &&
+                                                botState.totalSpentThisMonth > 0
+                                            ? AppColors.rose
+                                            : textSecondary,
                                       ),
                                     ),
                                   ),
@@ -667,7 +759,10 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
                                     fontSize: 29,
                                     fontWeight: FontWeight.w900,
                                     letterSpacing: -0.8,
-                                    color: textPrimary,
+                                    color: botState.dailySafeToSpend == 0 &&
+                                            botState.totalSpentThisMonth > 0
+                                        ? AppColors.rose
+                                        : textPrimary,
                                   ),
                                 ),
                               ),
@@ -676,6 +771,27 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
                                 spacing: 6,
                                 runSpacing: 6,
                                 children: [
+                                  if (botState.dailySafeToSpend == 0 &&
+                                      botState.totalSpentThisMonth > 0)
+                                    Container(
+                                      padding: const EdgeInsets.symmetric(
+                                        horizontal: 9,
+                                        vertical: 4,
+                                      ),
+                                      decoration: BoxDecoration(
+                                        color: AppColors.rose
+                                            .withValues(alpha: 0.16),
+                                        borderRadius: BorderRadius.circular(99),
+                                      ),
+                                      child: const Text(
+                                        '🚨 Hết Pin ví ngày',
+                                        style: TextStyle(
+                                          fontSize: 11,
+                                          fontWeight: FontWeight.w800,
+                                          color: AppColors.rose,
+                                        ),
+                                      ),
+                                    ),
                                   Container(
                                     padding: const EdgeInsets.symmetric(
                                       horizontal: 9,
@@ -962,34 +1078,75 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
 
                           return Padding(
                             padding: const EdgeInsets.only(bottom: 14),
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.stretch,
-                              children: [
-                                // User Natural Input Bubble (Tap to Edit/Delete)
-                                Align(
-                                  alignment: Alignment.centerRight,
-                                  child: GestureDetector(
-                                    onTap: () => showEditTransactionDialog(
-                                      context: context,
-                                      transaction: tx,
-                                      members: botState.members,
-                                      onSave: ({
-                                        required title,
-                                        required amountVnd,
-                                        required category,
-                                        required payerName,
-                                      }) {
-                                        notifier.editTransaction(
-                                          tx.id,
-                                          title: title,
-                                          amountVnd: amountVnd,
-                                          category: category,
-                                          payerName: payerName,
-                                        );
-                                      },
-                                      onDelete: () =>
-                                          notifier.deleteTransaction(tx.id),
+                            child: Dismissible(
+                              key: ValueKey('home_tx_${tx.id}'),
+                              direction: DismissDirection.endToStart,
+                              onDismissed: (_) =>
+                                  _handleDeleteTransaction(tx.id, notifier),
+                              background: Container(
+                                alignment: Alignment.centerRight,
+                                padding:
+                                    const EdgeInsets.symmetric(horizontal: 18),
+                                decoration: BoxDecoration(
+                                  color: AppColors.rose.withValues(alpha: 0.18),
+                                  borderRadius:
+                                      BorderRadius.circular(AppRadius.lg),
+                                  border: Border.all(
+                                    color:
+                                        AppColors.rose.withValues(alpha: 0.45),
+                                  ),
+                                ),
+                                child: const Row(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    Text(
+                                      'Vuốt để xóa',
+                                      style: TextStyle(
+                                        fontSize: 12,
+                                        fontWeight: FontWeight.w800,
+                                        color: AppColors.rose,
+                                      ),
                                     ),
+                                    SizedBox(width: 6),
+                                    Icon(
+                                      Icons.delete_outline_rounded,
+                                      color: AppColors.rose,
+                                      size: 20,
+                                    ),
+                                  ],
+                                ),
+                              ),
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.stretch,
+                                children: [
+                                  // User Natural Input Bubble (Tap to Edit/Delete)
+                                  Align(
+                                    alignment: Alignment.centerRight,
+                                    child: GestureDetector(
+                                      onTap: () => showEditTransactionDialog(
+                                        context: context,
+                                        transaction: tx,
+                                        members: botState.members,
+                                        onSave: ({
+                                          required title,
+                                          required amountVnd,
+                                          required category,
+                                          required payerName,
+                                        }) {
+                                          notifier.editTransaction(
+                                            tx.id,
+                                            title: title,
+                                            amountVnd: amountVnd,
+                                            category: category,
+                                            payerName: payerName,
+                                          );
+                                        },
+                                        onDelete: () =>
+                                            _handleDeleteTransaction(
+                                          tx.id,
+                                          notifier,
+                                        ),
+                                      ),
                                     child: Container(
                                       constraints:
                                           const BoxConstraints(maxWidth: 310),
@@ -1107,54 +1264,92 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
                                 ),
                                 const SizedBox(height: 6),
 
-                                // Bot Persona Reaction Bubble (Left-aligned)
+                                // Bot Persona Reaction Bubble (Left-aligned, tap to copy Roast Card)
                                 Align(
                                   alignment: Alignment.centerLeft,
-                                  child: Container(
-                                    constraints:
-                                        const BoxConstraints(maxWidth: 330),
-                                    padding: const EdgeInsets.all(12),
-                                    decoration: BoxDecoration(
-                                      color: personaAccent.withValues(
-                                        alpha: isDark ? 0.13 : 0.08,
-                                      ),
-                                      borderRadius: const BorderRadius.only(
-                                        topLeft: Radius.circular(4),
-                                        topRight: Radius.circular(18),
-                                        bottomLeft: Radius.circular(18),
-                                        bottomRight: Radius.circular(18),
-                                      ),
-                                      border: Border.all(
+                                  child: GestureDetector(
+                                    onTap: () =>
+                                        _copyRoastCard(tx, reply, isSavage),
+                                    child: Container(
+                                      constraints:
+                                          const BoxConstraints(maxWidth: 330),
+                                      padding: const EdgeInsets.all(12),
+                                      decoration: BoxDecoration(
                                         color: personaAccent.withValues(
-                                          alpha: 0.3,
+                                          alpha: isDark ? 0.13 : 0.08,
                                         ),
-                                      ),
-                                    ),
-                                    child: Row(
-                                      crossAxisAlignment:
-                                          CrossAxisAlignment.start,
-                                      children: [
-                                        Text(
-                                          isSavage ? '🔥' : '🌱',
-                                          style: const TextStyle(fontSize: 16),
+                                        borderRadius: const BorderRadius.only(
+                                          topLeft: Radius.circular(4),
+                                          topRight: Radius.circular(18),
+                                          bottomLeft: Radius.circular(18),
+                                          bottomRight: Radius.circular(18),
                                         ),
-                                        const SizedBox(width: 8),
-                                        Expanded(
-                                          child: Text(
-                                            reply,
-                                            style: TextStyle(
-                                              fontSize: 12.5,
-                                              height: 1.38,
-                                              fontWeight: FontWeight.w600,
-                                              color: textPrimary,
-                                            ),
+                                        border: Border.all(
+                                          color: personaAccent.withValues(
+                                            alpha: 0.3,
                                           ),
                                         ),
-                                      ],
+                                      ),
+                                      child: Column(
+                                        crossAxisAlignment:
+                                            CrossAxisAlignment.start,
+                                        children: [
+                                          Row(
+                                            crossAxisAlignment:
+                                                CrossAxisAlignment.start,
+                                            children: [
+                                              Text(
+                                                isSavage ? '🔥' : '🌱',
+                                                style: const TextStyle(
+                                                  fontSize: 16,
+                                                ),
+                                              ),
+                                              const SizedBox(width: 8),
+                                              Expanded(
+                                                child: Text(
+                                                  reply,
+                                                  style: TextStyle(
+                                                    fontSize: 12.5,
+                                                    height: 1.38,
+                                                    fontWeight: FontWeight.w600,
+                                                    color: textPrimary,
+                                                  ),
+                                                ),
+                                              ),
+                                            ],
+                                          ),
+                                          const SizedBox(height: 4),
+                                          Align(
+                                            alignment: Alignment.centerRight,
+                                            child: Row(
+                                              mainAxisSize: MainAxisSize.min,
+                                              children: [
+                                                Icon(
+                                                  Icons.share_outlined,
+                                                  size: 10.5,
+                                                  color: textSecondary,
+                                                ),
+                                                const SizedBox(width: 3),
+                                                Text(
+                                                  isSavage
+                                                      ? 'Chạm để copy câu khịa'
+                                                      : 'Chạm để copy lời khuyên',
+                                                  style: TextStyle(
+                                                    fontSize: 9.5,
+                                                    fontWeight: FontWeight.w600,
+                                                    color: textSecondary,
+                                                  ),
+                                                ),
+                                              ],
+                                            ),
+                                          ),
+                                        ],
+                                      ),
                                     ),
                                   ),
                                 ),
                               ],
+                            ),
                             ),
                           );
                         },
@@ -1301,15 +1496,27 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
                                     color: textPrimary,
                                   ),
                                 ),
-                                Text(
-                                  _isSharedRoomExpense
-                                      ? '⚡ Tier-1 • 0đ API • Tự động đẩy Chia QR'
-                                      : '⚡ Tier-1 Regex • ${_liveParsedPreview!.latencyMs}ms • 0đ API',
-                                  style: const TextStyle(
-                                    fontSize: 10,
-                                    fontWeight: FontWeight.w700,
-                                    color: AppColors.emerald,
-                                  ),
+                                Builder(
+                                  builder: (_) {
+                                    final detectedPayer =
+                                        HybridNlpService.detectMemberInQuery(
+                                              _inputController.text,
+                                              botState.members,
+                                            ) ??
+                                            botState.activePayer;
+                                    return Text(
+                                      _isSharedRoomExpense
+                                          ? '👤 $detectedPayer • ⚡ 0đ API • Đẩy Chia QR'
+                                          : '👤 $detectedPayer • ⚡ Tier-1 (${_liveParsedPreview!.latencyMs}ms) • 0đ API',
+                                      maxLines: 1,
+                                      overflow: TextOverflow.ellipsis,
+                                      style: const TextStyle(
+                                        fontSize: 10,
+                                        fontWeight: FontWeight.w700,
+                                        color: AppColors.emerald,
+                                      ),
+                                    );
+                                  },
                                 ),
                               ],
                             ),

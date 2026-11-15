@@ -106,6 +106,7 @@ class ExpenseTransaction {
   final String savageRoast;
   final String coachAdvice;
   final bool isSettled;
+  final String? linkedSplitId;
 
   const ExpenseTransaction({
     required this.id,
@@ -120,6 +121,7 @@ class ExpenseTransaction {
     required this.savageRoast,
     required this.coachAdvice,
     this.isSettled = true,
+    this.linkedSplitId,
   });
 
   ExpenseTransaction copyWith({
@@ -135,6 +137,7 @@ class ExpenseTransaction {
     String? savageRoast,
     String? coachAdvice,
     bool? isSettled,
+    String? linkedSplitId,
   }) {
     return ExpenseTransaction(
       id: id ?? this.id,
@@ -149,6 +152,7 @@ class ExpenseTransaction {
       savageRoast: savageRoast ?? this.savageRoast,
       coachAdvice: coachAdvice ?? this.coachAdvice,
       isSettled: isSettled ?? this.isSettled,
+      linkedSplitId: linkedSplitId ?? this.linkedSplitId,
     );
   }
 
@@ -166,6 +170,7 @@ class ExpenseTransaction {
       'savageRoast': savageRoast,
       'coachAdvice': coachAdvice,
       'isSettled': isSettled,
+      if (linkedSplitId != null) 'linkedSplitId': linkedSplitId,
     };
   }
 
@@ -190,6 +195,7 @@ class ExpenseTransaction {
       savageRoast: json['savageRoast'] as String? ?? '',
       coachAdvice: json['coachAdvice'] as String? ?? '',
       isSettled: json['isSettled'] as bool? ?? true,
+      linkedSplitId: json['linkedSplitId'] as String?,
     );
   }
 }
@@ -227,7 +233,7 @@ class HybridNlpService {
 
     // 1. Compound Vietnamese slang with "rưỡi" (e.g. "1 củ rưỡi", "2 lít rưỡi", "3 trăm rưỡi")
     final RegExp halfUnitRegex = RegExp(
-      r'(\d+)\s*(củ|triệu|tr|m|lít|trăm)\s*rưỡi\b',
+      r'(\d+)\s*(củ|triệu|tr|m|lít|trăm)\s*rưỡi(?:\s*(?:nghìn|ngàn|đồng|đ|vnd))?(?=\s|$|[.,!?;:)])',
       caseSensitive: false,
     );
     final halfMatch = halfUnitRegex.firstMatch(normalized);
@@ -246,9 +252,9 @@ class HybridNlpService {
       );
     }
 
-    // 2. Compound slang like "1 củ 2" (1,200,000), "2 lít 5" (250,000), "3 trăm 5" (350,000)
+    // 2. Compound slang like "1 củ 2" (1,200,000), "2 lít 5" (250,000), "3 trăm 5" (350,000), "1 triệu 500k"
     final RegExp compoundUnitRegex = RegExp(
-      r'(\d+)\s*(củ|triệu|tr|m|lít|trăm)\s*(\d+)\b',
+      r'(\d+)\s*(củ|triệu|tr|m|lít|trăm)\s*(\d+)(?:\s*(?:k|nghìn|ngàn|trăm|đồng|đ|vnd))?(?=\s|$|[.,!?;:)])',
       caseSensitive: false,
     );
     final compoundMatch = compoundUnitRegex.firstMatch(normalized);
@@ -260,7 +266,7 @@ class HybridNlpService {
           unit == 'củ' || unit == 'triệu' || unit == 'tr' || unit == 'm';
       final int majorMultiplier = isMillionUnit ? 1000000 : 100000;
       final int minorMultiplier = isMillionUnit
-          ? (minor < 10 ? 100000 : 1000)
+          ? (minor < 10 ? 100000 : (minor < 100 ? 10000 : 1000))
           : (minor < 10 ? 10000 : 1000);
       final int totalAmount =
           major * majorMultiplier + (minor * minorMultiplier);
@@ -273,9 +279,9 @@ class HybridNlpService {
       );
     }
 
-    // 3. Standard shorthand regex: 35k, 1.2m, 350k, 55000, 45 cành, 2 lít, 3 trăm, 5 chục
+    // 3. Standard shorthand regex: 35k, 1.2m, 350k, 55000, 45 cành, 2 lít, 3 trăm, 5 chục, 2 củ
     final RegExp shorthandRegex = RegExp(
-      r'(\d+(?:[.,]\d+)?)\s*(k|nghìn|ngàn|cành|ca|lít|trăm|chục|m|tr|triệu|củ|đồng|đ|vnd)?\b',
+      r'(\d+(?:[.,]\d+)?)\s*(k|nghìn|ngàn|cành|ca|lít|trăm|chục|m|tr|triệu|củ|đồng|đ|vnd)?(?:\s*(?:nghìn|ngàn|đồng|đ|vnd))?(?=\s|$|[.,!?;:)])',
       caseSensitive: false,
     );
 
@@ -342,8 +348,17 @@ class HybridNlpService {
     required String fallbackTitle,
     required int amountVnd,
   }) {
-    String extractedItem =
-        itemText.replaceAll(RegExp(r'^[-:,\s]+|[-:,\s]+$'), '').trim();
+    String extractedItem = itemText
+        .replaceAll(RegExp(r'\s+'), ' ')
+        .replaceAll(RegExp(r'^[-:,\s]+|[-:,\s]+$'), '')
+        .replaceAll(
+          RegExp(
+            r'\s+(?:hết|mất|tốn|giá|tầm|khoảng|đồng|vnd|vnđ|đ)$',
+            caseSensitive: false,
+          ),
+          '',
+        )
+        .trim();
     if (extractedItem.isEmpty) {
       extractedItem = fallbackTitle;
     } else {
@@ -370,6 +385,43 @@ class HybridNlpService {
       latencyMs: isComplexQuery ? 380.0 : 1.4,
       estimatedTokenCostVnd: isComplexQuery ? 110 : 0,
     );
+  }
+
+  /// Detects if a query describes a shared group/dorm expense from keywords or category.
+  static bool isLikelySharedExpense(String rawInput, ExpenseCategory category) {
+    if (category == ExpenseCategory.dormAndUtilities) return true;
+    final lower = rawInput.toLowerCase();
+    return lower.contains('chia phòng') ||
+        lower.contains('cùng phòng') ||
+        lower.contains('cả phòng') ||
+        lower.contains('chia tiền') ||
+        lower.contains('chia đôi') ||
+        lower.contains('chia ba') ||
+        lower.contains('chia nhau') ||
+        lower.contains('ăn chung') ||
+        lower.contains('mua chung') ||
+        lower.contains('quỹ phòng') ||
+        lower.contains('quỹ nhóm');
+  }
+
+  /// Detects if the user explicitly named a group member in the natural query
+  /// (e.g. "Tuất uống trà sữa 55k" -> "Tuất").
+  static String? detectMemberInQuery(String rawInput, List<String> members) {
+    if (members.length <= 1) return null;
+    final lowerInput = rawInput.trim().toLowerCase();
+    for (final member in members) {
+      final cleanMember = member.trim();
+      if (cleanMember.isEmpty) continue;
+      final lowerMember = cleanMember.toLowerCase();
+      final pattern = RegExp(
+        '(?:^|\\s|cho\\s+|của\\s+)${RegExp.escape(lowerMember)}(?:\\s|\$)',
+        caseSensitive: false,
+      );
+      if (pattern.hasMatch(lowerInput)) {
+        return cleanMember;
+      }
+    }
+    return null;
   }
 
   /// Normalizes STT spoken Vietnamese number phrases (e.g. "bốn mươi lăm nghìn",
@@ -404,7 +456,7 @@ class HybridNlpService {
     const String wordGroup =
         r'(?:không|một|mốt|hai|ba|bốn|tư|năm|lăm|nhăm|sáu|bảy|bẩy|tám|chín|mười|mươi|linh|lẻ)';
     final RegExp spokenNumberWithUnit = RegExp(
-      '\\b((?:$wordGroup\\s+){1,5}?)(?=(?:k|ca|nghìn|ngàn|cành|lít|trăm|chục|triệu|củ|đồng)\\b)',
+      '(?:^|(?<=\\s))((?:$wordGroup\\s+){1,5}?)(?=(?:k|ca|nghìn|ngàn|cành|lít|trăm|chục|triệu|củ|đồng)(?:\\s|\$|[.,!?;:)]))',
       caseSensitive: false,
     );
 
@@ -415,9 +467,9 @@ class HybridNlpService {
       return '$parsed ';
     });
 
-    // Convert trailing spoken digit in compound "1 triệu hai" / "1 củ rưỡi"
+    // Convert trailing spoken digit in compound "1 triệu hai" / "1 triệu hai trăm" / "1 củ rưỡi"
     final RegExp trailingWordDigit = RegExp(
-      r'\b(\d+)\s*(củ|triệu|tr|m|lít|trăm)\s+(một|mốt|hai|ba|bốn|tư|năm|lăm|sáu|bảy|bẩy|tám|chín)\b',
+      r'(\d+)\s*(củ|triệu|tr|m|lít|trăm)\s+(một|mốt|hai|ba|bốn|tư|năm|lăm|sáu|bảy|bẩy|tám|chín)(?:\s+trăm(?:\s+(?:nghìn|ngàn))?)?(?=\s|$|[.,!?;:)])',
       caseSensitive: false,
     );
     text = text.replaceAllMapped(trailingWordDigit, (m) {
@@ -426,9 +478,24 @@ class HybridNlpService {
       return '${m.group(1)} ${m.group(2)} $minor';
     });
 
+    // Collapse "trăm nghìn" / "trăm ngàn" after a number into "trăm" (100k scale)
+    text = text.replaceAllMapped(
+      RegExp(
+        r'(\d+)\s*trăm(?:\s+rưỡi)?\s+(?:nghìn|ngàn)(?:\s+đồng)?(?=\s|$|[.,!?;:)])',
+        caseSensitive: false,
+      ),
+      (m) => m.group(0)!.replaceAll(
+            RegExp(r'\s+(?:nghìn|ngàn)(?:\s+đồng)?$', caseSensitive: false),
+            '',
+          ),
+    );
+
     // Convert standalone "trăm rưỡi" (no leading number) -> "1 trăm rưỡi"
     text = text.replaceAllMapped(
-      RegExp(r'(?<!\d\s)\b(trăm|củ|triệu|lít)\s+rưỡi\b', caseSensitive: false),
+      RegExp(
+        r'(?<!\d\s)(?:^|(?<=\s))(trăm|củ|triệu|lít)\s+rưỡi(?=\s|$|[.,!?;:)])',
+        caseSensitive: false,
+      ),
       (m) => '1 ${m.group(1)} rưỡi',
     );
 
@@ -481,6 +548,8 @@ class HybridNlpService {
     if (lower.contains('trọ') ||
         lower.contains('điện') ||
         lower.contains('wifi') ||
+        lower.contains('mạng') ||
+        lower.contains('internet') ||
         lower.contains('phòng') ||
         lower.contains('rác') ||
         lower.contains('tiền nước') ||
@@ -488,50 +557,106 @@ class HybridNlpService {
         lower.contains('nước rửa') ||
         lower.contains('bình nước') ||
         lower.contains('nước lọc') ||
+        lower.contains('xà phòng') ||
+        lower.contains('bột giặt') ||
+        lower.contains('giấy vệ sinh') ||
         lower.contains('nhà')) {
       return ExpenseCategory.dormAndUtilities;
     }
     if (lower.contains('trà sữa') ||
         lower.contains('cafe') ||
         lower.contains('cà phê') ||
+        RegExp(r'(?:^|\s)cf(?:\s|$)').hasMatch(lower) ||
         lower.contains('highlands') ||
         lower.contains('phê la') ||
         lower.contains('koi') ||
         lower.contains('gongcha') ||
         lower.contains('matcha') ||
         lower.contains('katinat') ||
+        lower.contains('mixue') ||
+        lower.contains('tocotoco') ||
+        lower.contains('starbucks') ||
+        lower.contains('bạc xỉu') ||
+        lower.contains('trà chanh') ||
+        lower.contains('trà tắc') ||
+        lower.contains('trà đào') ||
+        lower.contains('sinh tố') ||
+        lower.contains('nước ép') ||
+        lower.contains('nước mía') ||
+        lower.contains('monster') ||
+        lower.contains('redbull') ||
         lower.contains('nước')) {
       return ExpenseCategory.bobaAndCafe;
     }
     if (lower.contains('cơm') ||
         lower.contains('phở') ||
         lower.contains('bún') ||
-        RegExp(r'\băn\b').hasMatch(lower) ||
+        lower.contains('hủ tiếu') ||
+        lower.contains('miến') ||
+        lower.contains('cháo') ||
+        lower.contains('xôi') ||
+        RegExp(r'(?:^|\s)ăn(?:\s|$)').hasMatch(lower) ||
         lower.contains('mì') ||
         lower.contains('lẩu') ||
         lower.contains('nướng') ||
         lower.contains('bánh') ||
+        lower.contains('gà') ||
+        lower.contains('bò') ||
+        lower.contains('thịt') ||
+        lower.contains('ốc') ||
+        lower.contains('kfc') ||
+        lower.contains('lotteria') ||
+        lower.contains('jollibee') ||
+        lower.contains('pizza') ||
+        lower.contains('burger') ||
+        lower.contains('sushi') ||
+        lower.contains('tokbokki') ||
+        lower.contains('xiên') ||
+        lower.contains('chè') ||
+        lower.contains('kem') ||
+        lower.contains('circle k') ||
+        lower.contains('gs25') ||
+        lower.contains('winmart') ||
+        lower.contains('siêu thị') ||
+        lower.contains('tạp hóa') ||
         lower.contains('trưa') ||
         lower.contains('sáng') ||
-        lower.contains('tối')) {
+        lower.contains('tối') ||
+        lower.contains('khuya')) {
       return ExpenseCategory.foodAndDrink;
     }
     if (lower.contains('grab') ||
-        RegExp(r'\bbe\b').hasMatch(lower) ||
+        RegExp(r'(?:^|\s)be(?:\s|$)').hasMatch(lower) ||
         lower.contains('xanh sm') ||
+        lower.contains('gojek') ||
+        lower.contains('taxi') ||
         lower.contains('xăng') ||
-        RegExp(r'\bxe\b').hasMatch(lower) ||
-        lower.contains('bus')) {
+        lower.contains('nhớt') ||
+        RegExp(r'(?:^|\s)xe(?:\s|$)').hasMatch(lower) ||
+        lower.contains('bus') ||
+        lower.contains('buýt') ||
+        lower.contains('metro')) {
       return ExpenseCategory.transport;
     }
     if (lower.contains('game') ||
         lower.contains('phim') ||
         lower.contains('cgv') ||
+        lower.contains('lotte') ||
         lower.contains('shopee') ||
+        lower.contains('lazada') ||
         lower.contains('tiktok') ||
-        RegExp(r'\báo\b').hasMatch(lower) ||
+        RegExp(r'(?:^|\s)áo(?:\s|$)').hasMatch(lower) ||
+        lower.contains('quần') ||
         lower.contains('giày') ||
+        lower.contains('mỹ phẩm') ||
+        lower.contains('son') ||
+        lower.contains('cắt tóc') ||
+        lower.contains('gym') ||
+        lower.contains('bida') ||
+        lower.contains('karaoke') ||
         lower.contains('netflix') ||
+        lower.contains('spotify') ||
+        lower.contains('steam') ||
         lower.contains('skin')) {
       return ExpenseCategory.entertainment;
     }
