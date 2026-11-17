@@ -34,7 +34,7 @@ jobs:
 
       - name: Build Flutter Web (Release)
         run: |
-          flutter build web --release --base-href "/Swinbiz2026/"
+          flutter build web --release --base-href "/Swinbiz2026/" --dart-define=GEMINI_API_KEY=${{ secrets.GEMINI_API_KEY }}
           cp build/web/index.html build/web/404.html
           touch build/web/.nojekyll
 
