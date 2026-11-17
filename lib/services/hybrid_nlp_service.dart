@@ -215,6 +215,9 @@ class HybridNlpService {
 
   static String formatCompactVnd(num amount) {
     final val = amount.abs();
+    if (val >= 1000000000) {
+      return '${(amount / 1000000000).toStringAsFixed(2)}B đ';
+    }
     if (val >= 1000000) {
       return '${(amount / 1000000).toStringAsFixed(2)}M đ';
     }
@@ -233,18 +236,22 @@ class HybridNlpService {
 
     final String normalized = _normalizeSpokenAndFormattedAmounts(cleaned);
 
-    // 1. Compound Vietnamese slang with "rưỡi" (e.g. "1 củ rưỡi", "2 lít rưỡi", "3 trăm rưỡi")
+    // 1. Compound Vietnamese slang with "rưỡi" (e.g. "1 tỷ rưỡi", "1 củ rưỡi", "2 lít rưỡi", "3 trăm rưỡi")
     final RegExp halfUnitRegex = RegExp(
-      r'(\d+)\s*(củ|triệu|tr|m|lít|trăm)\s*rưỡi(?:\s*(?:nghìn|ngàn|đồng|đ|vnd))?(?=\s|$|[.,!?;:)])',
+      r'(\d+)\s*(tỷ|tỉ|tỏi|củ|triệu|tr|m|lít|trăm)\s*rưỡi(?:\s*(?:nghìn|ngàn|đồng|đ|vnd))?(?=\s|$|[.,!?;:)])',
       caseSensitive: false,
     );
     final halfMatch = halfUnitRegex.firstMatch(normalized);
     if (halfMatch != null) {
       final int major = int.tryParse(halfMatch.group(1)!) ?? 0;
       final String unit = halfMatch.group(2)!.toLowerCase();
+      final bool isBillionUnit =
+          unit == 'tỷ' || unit == 'tỉ' || unit == 'tỏi';
       final bool isMillionUnit =
           unit == 'củ' || unit == 'triệu' || unit == 'tr' || unit == 'm';
-      final int unitMultiplier = isMillionUnit ? 1000000 : 100000;
+      final int unitMultiplier = isBillionUnit
+          ? 1000000000
+          : (isMillionUnit ? 1000000 : 100000);
       final int totalAmount = major * unitMultiplier + (unitMultiplier ~/ 2);
       return _buildParsedResult(
         rawQuery: cleaned,
@@ -254,9 +261,9 @@ class HybridNlpService {
       );
     }
 
-    // 2. Compound slang like "1 củ 2" (1,200,000), "2 lít 5" (250,000), "3 trăm 5" (350,000), "1 triệu 500k"
+    // 2. Compound slang like "1 tỷ 2" (1,200,000,000), "1 tỷ 50tr" (1,050,000,000), "1 củ 2" (1,200,000), "2 lít 5" (250,000)
     final RegExp compoundUnitRegex = RegExp(
-      r'(\d+)\s*(củ|triệu|tr|m|lít|trăm)\s*(\d+)(?:\s*(?:k|nghìn|ngàn|trăm|đồng|đ|vnd))?(?=\s|$|[.,!?;:)])',
+      r'(\d+)\s*(tỷ|tỉ|tỏi|củ|triệu|tr|m|lít|trăm)\s*(\d+)(?:\s*(củ|triệu|tr|m|k|nghìn|ngàn|trăm|đồng|đ|vnd))?(?=\s|$|[.,!?;:)])',
       caseSensitive: false,
     );
     final compoundMatch = compoundUnitRegex.firstMatch(normalized);
@@ -264,12 +271,30 @@ class HybridNlpService {
       final int major = int.tryParse(compoundMatch.group(1)!) ?? 0;
       final String unit = compoundMatch.group(2)!.toLowerCase();
       final int minor = int.tryParse(compoundMatch.group(3)!) ?? 0;
+      final String minorUnit = (compoundMatch.group(4) ?? '').toLowerCase();
+      final bool isBillionUnit =
+          unit == 'tỷ' || unit == 'tỉ' || unit == 'tỏi';
       final bool isMillionUnit =
           unit == 'củ' || unit == 'triệu' || unit == 'tr' || unit == 'm';
-      final int majorMultiplier = isMillionUnit ? 1000000 : 100000;
-      final int minorMultiplier = isMillionUnit
-          ? (minor < 10 ? 100000 : (minor < 100 ? 10000 : 1000))
-          : (minor < 10 ? 10000 : 1000);
+      final int majorMultiplier = isBillionUnit
+          ? 1000000000
+          : (isMillionUnit ? 1000000 : 100000);
+      final int minorMultiplier;
+      if (isBillionUnit) {
+        if (minorUnit == 'củ' ||
+            minorUnit == 'triệu' ||
+            minorUnit == 'tr' ||
+            minorUnit == 'm') {
+          minorMultiplier = 1000000;
+        } else {
+          minorMultiplier =
+              minor < 10 ? 100000000 : (minor < 100 ? 10000000 : 1000000);
+        }
+      } else if (isMillionUnit) {
+        minorMultiplier = minor < 10 ? 100000 : (minor < 100 ? 10000 : 1000);
+      } else {
+        minorMultiplier = minor < 10 ? 10000 : 1000;
+      }
       final int totalAmount =
           major * majorMultiplier + (minor * minorMultiplier);
       return _buildParsedResult(
@@ -281,9 +306,9 @@ class HybridNlpService {
       );
     }
 
-    // 3. Standard shorthand regex: 35k, 1.2m, 350k, 55000, 45 cành, 2 lít, 3 trăm, 5 chục, 2 củ
+    // 3. Standard shorthand regex: 35k, 1.2m, 1.5 tỷ, 2 tỏi, 350k, 55000, 45 cành, 2 lít, 3 trăm, 5 chục, 2 củ
     final RegExp shorthandRegex = RegExp(
-      r'(\d+(?:[.,]\d+)?)\s*(k|nghìn|ngàn|cành|ca|lít|trăm|chục|m|tr|triệu|củ|đồng|đ|vnd)?(?:\s*(?:nghìn|ngàn|đồng|đ|vnd))?(?=\s|$|[.,!?;:)])',
+      r'(\d+(?:[.,]\d+)?)\s*(k|nghìn|ngàn|cành|ca|lít|trăm|chục|m|tr|triệu|củ|tỷ|tỉ|tỏi|đồng|đ|vnd)?(?:\s*(?:nghìn|ngàn|đồng|đ|vnd))?(?=\s|$|[.,!?;:)])',
       caseSensitive: false,
     );
 
@@ -330,6 +355,8 @@ class HybridNlpService {
       multiplier = 100000.0;
     } else if (unit == 'm' || unit == 'tr' || unit == 'triệu' || unit == 'củ') {
       multiplier = 1000000.0;
+    } else if (unit == 'tỷ' || unit == 'tỉ' || unit == 'tỏi') {
+      multiplier = 1000000000.0;
     } else if (unit.isEmpty && baseValue < 1000) {
       multiplier = 1000.0;
     }
@@ -458,7 +485,7 @@ class HybridNlpService {
     const String wordGroup =
         r'(?:không|một|mốt|hai|ba|bốn|tư|năm|lăm|nhăm|sáu|bảy|bẩy|tám|chín|mười|mươi|linh|lẻ)';
     final RegExp spokenNumberWithUnit = RegExp(
-      '(?:^|(?<=\\s))((?:$wordGroup\\s+){1,5}?)(?=(?:k|ca|nghìn|ngàn|cành|lít|trăm|chục|triệu|củ|đồng)(?:\\s|\$|[.,!?;:)]))',
+      '(?:^|(?<=\\s))((?:$wordGroup\\s+){1,5}?)(?=(?:k|ca|nghìn|ngàn|cành|lít|trăm|chục|triệu|củ|tỷ|tỉ|tỏi|đồng)(?:\\s|\$|[.,!?;:)]))',
       caseSensitive: false,
     );
 
@@ -469,9 +496,9 @@ class HybridNlpService {
       return '$parsed ';
     });
 
-    // Convert trailing spoken digit in compound "1 triệu hai" / "1 triệu hai trăm" / "1 củ rưỡi"
+    // Convert trailing spoken digit in compound "1 triệu hai" / "1 tỷ hai" / "1 củ rưỡi"
     final RegExp trailingWordDigit = RegExp(
-      r'(\d+)\s*(củ|triệu|tr|m|lít|trăm)\s+(một|mốt|hai|ba|bốn|tư|năm|lăm|sáu|bảy|bẩy|tám|chín)(?:\s+trăm(?:\s+(?:nghìn|ngàn))?)?(?=\s|$|[.,!?;:)])',
+      r'(\d+)\s*(tỷ|tỉ|tỏi|củ|triệu|tr|m|lít|trăm)\s+(một|mốt|hai|ba|bốn|tư|năm|lăm|sáu|bảy|bẩy|tám|chín)(?:\s+trăm(?:\s+(?:nghìn|ngàn))?)?(?=\s|$|[.,!?;:)])',
       caseSensitive: false,
     );
     text = text.replaceAllMapped(trailingWordDigit, (m) {
@@ -492,10 +519,10 @@ class HybridNlpService {
           ),
     );
 
-    // Convert standalone "trăm rưỡi" (no leading number) -> "1 trăm rưỡi"
+    // Convert standalone "trăm rưỡi" / "tỷ rưỡi" (no leading number) -> "1 trăm rưỡi"
     text = text.replaceAllMapped(
       RegExp(
-        r'(?<!\d\s)(?:^|(?<=\s))(trăm|củ|triệu|lít)\s+rưỡi(?=\s|$|[.,!?;:)])',
+        r'(?<!\d\s)(?:^|(?<=\s))(trăm|củ|triệu|lít|tỷ|tỉ|tỏi)\s+rưỡi(?=\s|$|[.,!?;:)])',
         caseSensitive: false,
       ),
       (m) => '1 ${m.group(1)} rưỡi',

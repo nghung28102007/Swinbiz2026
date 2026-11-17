@@ -506,5 +506,44 @@ void main() {
         'custom-key-123',
       );
     });
+
+    test('parses billion units (tỷ, tỉ, tỏi) and compound billion phrases', () {
+      expect(
+        HybridNlpService.parseNaturalInput('mua nhà 1 tỷ')?.amountVnd,
+        1000000000,
+      );
+      expect(
+        HybridNlpService.parseNaturalInput('chốt đơn 2 tỏi')?.amountVnd,
+        2000000000,
+      );
+      expect(
+        HybridNlpService.parseNaturalInput('đất nền 1.5 tỉ')?.amountVnd,
+        1500000000,
+      );
+      expect(
+        HybridNlpService.parseNaturalInput('1 tỷ rưỡi')?.amountVnd,
+        1500000000,
+      );
+      expect(
+        HybridNlpService.parseNaturalInput('tỏi rưỡi')?.amountVnd,
+        1500000000,
+      );
+      expect(
+        HybridNlpService.parseNaturalInput('1 tỷ 2')?.amountVnd,
+        1200000000,
+      );
+      expect(
+        HybridNlpService.parseNaturalInput('1 tỷ 50 triệu')?.amountVnd,
+        1050000000,
+      );
+      expect(
+        HybridNlpService.parseNaturalInput('mua xe một tỷ')?.amountVnd,
+        1000000000,
+      );
+      expect(
+        HybridNlpService.formatCompactVnd(1500000000),
+        '1.50B đ',
+      );
+    });
   });
 }
