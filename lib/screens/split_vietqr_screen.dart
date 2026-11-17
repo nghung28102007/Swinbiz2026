@@ -456,26 +456,108 @@ class _SplitVietQrScreenState extends ConsumerState<SplitVietQrScreen> {
             // 1. TOP DYNAMIC ROOMMATE SUMMARY STRIP
             if (members.length <= 3)
               Row(
-                children: members.map((member) {
-                  return Expanded(
-                    child: Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 4),
-                      child: buildMemberCard(member),
+                children: [
+                  ...members.map((member) {
+                    return Expanded(
+                      child: Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 4),
+                        child: buildMemberCard(member),
+                      ),
+                    );
+                  }),
+                  if (members.length > 1)
+                    Padding(
+                      padding: const EdgeInsets.only(left: 4),
+                      child: InkWell(
+                        onTap: () => showGroupSettingsModal(context),
+                        borderRadius: BorderRadius.circular(18),
+                        child: Container(
+                          width: 64,
+                          padding: const EdgeInsets.symmetric(
+                            vertical: 14,
+                            horizontal: 6,
+                          ),
+                          decoration: BoxDecoration(
+                            color: AppColors.violet.withValues(alpha: 0.08),
+                            borderRadius: BorderRadius.circular(18),
+                            border: Border.all(
+                              color: AppColors.violet.withValues(alpha: 0.35),
+                            ),
+                          ),
+                          child: const Column(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Icon(
+                                Icons.person_add_alt_1_rounded,
+                                size: 18,
+                                color: AppColors.violet,
+                              ),
+                              SizedBox(height: 4),
+                              Text(
+                                'Thêm',
+                                style: TextStyle(
+                                  fontSize: 10.5,
+                                  fontWeight: FontWeight.w800,
+                                  color: AppColors.violet,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
                     ),
-                  );
-                }).toList(),
+                ],
               )
             else
               SingleChildScrollView(
                 scrollDirection: Axis.horizontal,
                 child: Row(
-                  children: members.map((member) {
-                    return Container(
-                      width: 116,
-                      margin: const EdgeInsets.only(right: 8),
-                      child: buildMemberCard(member),
-                    );
-                  }).toList(),
+                  children: [
+                    ...members.map((member) {
+                      return Container(
+                        width: 116,
+                        margin: const EdgeInsets.only(right: 8),
+                        child: buildMemberCard(member),
+                      );
+                    }),
+                    InkWell(
+                      onTap: () => showGroupSettingsModal(context),
+                      borderRadius: BorderRadius.circular(18),
+                      child: Container(
+                        width: 72,
+                        padding: const EdgeInsets.symmetric(
+                          vertical: 14,
+                          horizontal: 8,
+                        ),
+                        decoration: BoxDecoration(
+                          color: AppColors.violet.withValues(alpha: 0.08),
+                          borderRadius: BorderRadius.circular(18),
+                          border: Border.all(
+                            color: AppColors.violet.withValues(alpha: 0.35),
+                          ),
+                        ),
+                        child: const Column(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Icon(
+                              Icons.person_add_alt_1_rounded,
+                              size: 18,
+                              color: AppColors.violet,
+                            ),
+                            SizedBox(height: 4),
+                            Text(
+                              'Thêm',
+                              style: TextStyle(
+                                fontSize: 10.5,
+                                fontWeight: FontWeight.w800,
+                                color: AppColors.violet,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ],
                 ),
               ),
             const SizedBox(height: 12),
