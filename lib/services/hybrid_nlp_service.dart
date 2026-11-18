@@ -494,6 +494,9 @@ class HybridNlpService {
     return lower.contains('chia phòng') ||
         lower.contains('cùng phòng') ||
         lower.contains('cả phòng') ||
+        lower.contains('sinh hoạt chung') ||
+        lower.contains('chi chung') ||
+        lower.contains('tiền chung') ||
         lower.contains('chia tiền') ||
         lower.contains('chia đôi') ||
         lower.contains('chia ba') ||
@@ -871,32 +874,32 @@ class HybridNlpService {
   }) {
     final List<String> genericClosers = [
       if (remainingDailySafeVnd <= 0)
-        'Hạn mức hôm nay về 0đ rồi, từ giờ tới tối $payerName chỉ nên hít khí trời thôi nhé.'
+        'Hạn mức hôm nay cháy khét về 0đ rồi, từ giờ tới tối $payerName chỉ nên hít không khí cầm hơi thôi!'
       else
-        'Hạn mức an toàn hôm nay của $payerName chỉ còn $formattedSafe thôi đấy.',
+        'Ví $payerName đang thở oxy với hạn mức hôm nay tụt xuống còn đúng $formattedSafe!',
       if (predictedRunwayDays <= 7)
-        'Đường băng sinh tồn còn đúng $predictedRunwayDays ngày — chuẩn bị tinh thần ăn mì gói qua ngày nhé!'
+        'Đường băng chỉ còn $predictedRunwayDays ngày — chuẩn bị tinh thần ăn mì gói không người lái tới cuối tháng đi nhé!'
       else
-        'Quỹ sống sót tháng này còn $predictedRunwayDays ngày, tiêu chậm lại một nhịp đi $payerName.',
-      'Cứ tốc độ quẹt QR thế này thì cuối tháng anh em lại nhìn nhau cười trừ.',
-      'Ví của $payerName đang gửi tín hiệu SOS khẩn cấp rồi kìa!',
-      'Đổi vài phút vui lấy áp lực cuối tháng, $payerName thấy kèo này hời không?',
-      'Ghi sổ xong mà app cũng thấy xót hộ cho tài khoản của $payerName.',
+        'Quỹ sống sót còn $predictedRunwayDays ngày, cứ đà vung tay này thì giữa tháng là đi xin viện trợ đấy $payerName.',
+      'Quẹt tiền thì nhanh hơn người yêu cũ trở mặt, đến lúc nhìn số dư lại hỏi tiền đi đâu hết rồi!',
+      'Chiếc ví của $payerName vừa gửi đơn kiện lên tòa án tối cao vì bị bóc lột quá đáng.',
+      'Cúng tiền cho tư bản mượt tay thế này thì cuối tháng anh em lại nhìn nhau cười trừ cho đỡ đói nhé!',
+      'App ghi sổ xong mà cũng muốn khóc thét thay cho cái tài khoản ngân hàng của $payerName.',
     ];
 
     if (amountVnd >= 100000000) {
       return (
         openers: [
-          'Khoan đã $payerName, chốt "$itemTitle" tận $formattedAmount luôn hả đại gia?',
-          'Cú chuyển khoản "$itemTitle" ($formattedAmount) của $payerName làm app suýt sập nguồn vì quá nhiều số 0!',
-          'Chi hẳn $formattedAmount cho "$itemTitle" — $payerName đang chơi hệ tài phiệt đúng không?',
-          'Một pha vung tay $formattedAmount vào "$itemTitle", chắc đây là giao dịch tầm cỡ nhất tháng của $payerName.',
+          'Khoan đã $payerName, chốt "$itemTitle" tận $formattedAmount luôn hả đại gia? Ví sinh viên nào gánh nổi cú này!',
+          'Cú vung tay "$itemTitle" ($formattedAmount) của $payerName làm app suýt sập nguồn vì choáng số 0!',
+          'Chi hẳn $formattedAmount cho "$itemTitle" — $payerName đang cosplay tài phiệt đúng không?',
+          'Một pha đốt $formattedAmount vào "$itemTitle", chắc đây là cú chuyển khoản chấn động nhất năm của $payerName.',
         ],
         closers: [
-          'Ngân sách sinh viên gánh không nổi kèo này đâu, kiểm tra lại ví ngay nhé!',
-          'Nếu đây là khoản góp chung thì nhớ chia VietQR liền tay kẻo gồng một mình.',
-          'App xin phép nghiêng mình kính nể độ chịu chi của $payerName, đường băng còn $predictedRunwayDays ngày.',
-          'Nhập nhầm số hay trúng số thật thế $payerName? Hạn mức ngày giờ là $formattedSafe.',
+          'Ngân sách tháng khóc thét không thành tiếng luôn rồi, kiểm tra lại ví ngay kẻo ngất!',
+          'Nếu đây là khoản góp chung thì chia VietQR liền tay chứ gồng một mình là bay màu đấy.',
+          'App xin nghiêng mình bái phục độ chịu chơi của $payerName, đường băng còn $predictedRunwayDays ngày.',
+          'Gõ nhầm số 0 hay vừa trúng độc đắc thế $payerName? Hạn mức ngày giờ là $formattedSafe.',
         ],
       );
     }
@@ -908,22 +911,22 @@ class HybridNlpService {
           lower.contains('cf')) {
         return (
           openers: [
-            '$payerName lại nạp $formattedAmount tiền "$itemTitle" để tỉnh táo nhìn số dư tụt dốc đúng không?',
-            'Thêm một ly "$itemTitle" ($formattedAmount) cho $payerName tỉnh chạy deadline.',
-            'Chi $formattedAmount vào "$itemTitle" — caffeine tăng vọt nhưng ví thì sắp ngất lâm sàng.',
-            'Mỗi ngày một cữ "$itemTitle" $formattedAmount thế này thì tháng sau uống nước lọc ngắm phố nhé $payerName.',
-            'Đầu tư $formattedAmount cho "$itemTitle", tinh thần tỉnh 100% còn túi tiền thì mỏng dần.',
+            '$payerName lại cúng $formattedAmount tiền "$itemTitle" để tỉnh táo ngồi nhìn số dư rơi tự do đúng không?',
+            'Lại thêm một ly "$itemTitle" ($formattedAmount)! Caffeine nuôi $payerName chạy deadline còn cái ví thì đang ngáp ngoải.',
+            'Đốt $formattedAmount vào "$itemTitle" — tim đập nhanh vì cà phê hay vì sắp hết tiền ăn tối thế $payerName?',
+            'Mỗi ngày một cữ "$itemTitle" $formattedAmount thế này thì tuần sau $payerName uống nước lọc đun sôi cho mát ruột nhé.',
+            'Đầu tư $formattedAmount cho "$itemTitle", mắt thì mở to mà ví thì xẹp lép như bánh đa nhúng nước.',
           ],
           closers: genericClosers,
         );
       }
       return (
         openers: [
-          'Ê $payerName, lại "$itemTitle" hết $formattedAmount! Đường huyết tăng tỷ lệ nghịch với số dư ngân hàng đó.',
-          'Cúng $formattedAmount cho "$itemTitle" nhanh thế $payerName? Quán trà sữa chắc sắp tặng bằng khen cho bạn.',
-          'Bảo giảm ngọt giảm tiêu mà tay $payerName quẹt "$itemTitle" ($formattedAmount) còn nhanh hơn ánh sáng.',
-          'Chuỗi ngày cai trà sữa của $payerName chính thức bay màu vì "$itemTitle" ($formattedAmount).',
-          'Một ly "$itemTitle" giá $formattedAmount đổi lấy 15 phút hạnh phúc ngắn ngủi.',
+          'Ê $payerName, lại bú "$itemTitle" bay $formattedAmount! Đường huyết tăng vọt tỷ lệ nghịch với số dư ngân hàng luôn.',
+          'Cúng $formattedAmount cho "$itemTitle" không chớp mắt! Chủ quán trà sữa chắc sắp đúc tượng cảm ơn $payerName rồi.',
+          'Miệng thì hô giảm cân tiết kiệm mà tay $payerName quẹt "$itemTitle" ($formattedAmount) còn nhanh hơn vận tốc ánh sáng!',
+          'Chuỗi ngày cai nghiện chính thức tan nát vì "$itemTitle" ($formattedAmount) — đúng là nói trước bước không qua.',
+          'Đổi $formattedAmount lấy ly "$itemTitle" uống 15 phút xong ôm áp lực cuối tháng, kèo này $payerName lỗ chỏng vó!',
         ],
         closers: genericClosers,
       );
@@ -932,17 +935,17 @@ class HybridNlpService {
     if (category == ExpenseCategory.dormAndUtilities) {
       return (
         openers: [
-          'Cú tát tư bản mang tên "$itemTitle" (-$formattedAmount) vừa giáng xuống ví $payerName!',
-          'Thanh toán "$itemTitle" mất $formattedAmount. Lúc bật điều hòa mát rượi thì cười tươi, lúc nhìn bill thì trầm cảm.',
-          'Bay nhẹ $formattedAmount cho "$itemTitle" — đúng là cái giá của sự trưởng thành.',
-          'Hóa đơn "$itemTitle" ($formattedAmount) vừa gõ cửa phòng rồi $payerName ơi.',
-          'Đã trừ $formattedAmount tiền "$itemTitle" của $payerName.',
+          'Cú tát tư bản mang tên "$itemTitle" (-$formattedAmount) vừa giáng thẳng vào mặt ví $payerName!',
+          'Thanh toán "$itemTitle" bay $formattedAmount. Lúc bật điều hòa 18 độ thì sang chảnh, lúc nhìn bill thì trầm cảm toàn tập.',
+          'Bay nhẹ $formattedAmount cho "$itemTitle" — hóa đơn đúng hẹn hơn cả người yêu cũ!',
+          'Bill "$itemTitle" ($formattedAmount) vừa gõ cửa đòi mạng rồi đấy $payerName ơi.',
+          'Trừ nóng $formattedAmount tiền "$itemTitle" của $payerName, nhìn xong chỉ muốn tắt hết cầu dao đi ngủ.',
         ],
         closers: [
-          'Nhớ qua tab Chia Tiền QR đòi anh em cùng phòng ngay kẻo cuối tháng ôm nợ một mình!',
-          'Khoản chung mà không thu hồi sớm là $payerName gồng lưng cả tháng đấy.',
+          'Qua tab Chia Tiền QR đòi anh em từng xu ngay kẻo cả phòng lờ đi để $payerName gồng lưng một mình!',
+          'Khoản sinh hoạt chung mà không thu hồi trong hôm nay là cuối tháng $payerName ôm hận đấy.',
           'Hạn mức cá nhân hôm nay còn $formattedSafe, đường băng phòng còn $predictedRunwayDays ngày.',
-          'Chụp lại bill gửi nhóm chat liền đi $payerName, đừng để ai giả vờ quên!',
+          'Gửi link VietQR vào nhóm chat liền đi $payerName, đừng để ai giả vờ mất mạng!',
         ],
       );
     }
@@ -950,11 +953,11 @@ class HybridNlpService {
     if (category == ExpenseCategory.transport) {
       return (
         openers: [
-          'Đi lại kiểu "$itemTitle" mất $formattedAmount! $payerName đang nhập vai chủ tịch hay bận chạy show vậy?',
-          'Chi $formattedAmount cho "$itemTitle" — di chuyển thì êm ru nhưng ví hơi rung lắc nhẹ.',
-          'Tốc độ chốt "$itemTitle" ($formattedAmount) của $payerName nhanh thật sự.',
-          'Vừa bay $formattedAmount vào "$itemTitle", đổi lại tiết kiệm được ít thời gian và sức chân.',
-          'Lại một cuốc "$itemTitle" trị giá $formattedAmount lên sổ của $payerName.',
+          'Đi có đoạn đường cũng đốt "$itemTitle" mất $formattedAmount! Đôi chân $payerName sinh ra để làm cảnh à?',
+          'Chi $formattedAmount cho "$itemTitle" — ngồi xe thì gió mát mặt mà nhìn lại số dư thì lạnh sống lưng.',
+          'Tốc độ đặt "$itemTitle" ($formattedAmount) của $payerName mượt thật, đúng kiểu chủ tịch giả nghèo.',
+          'Vừa cống $formattedAmount cho "$itemTitle", tiết kiệm được 10 phút đi bộ nhưng mất đứt bữa cơm ngon.',
+          'Lại một cuốc "$itemTitle" trị giá $formattedAmount — đi lại sang chảnh nhất xóm trọ là $payerName chứ ai!',
         ],
         closers: genericClosers,
       );
@@ -963,11 +966,11 @@ class HybridNlpService {
     if (category == ExpenseCategory.entertainment) {
       return (
         openers: [
-          'Chốt đơn "$itemTitle" ($formattedAmount) lúc nửa tỉnh nửa mê đúng không $payerName?',
-          'Đốt $formattedAmount vào "$itemTitle" nhanh như chớp! Niềm vui ngắn hạn vừa cắn một miếng vào ngân sách.',
-          'Lại tự thưởng "$itemTitle" mất $formattedAmount — mua vì cần hay vì nghiện cảm giác thanh toán vậy $payerName?',
-          'Quẹt $formattedAmount cho "$itemTitle" không chớp mắt, phong thái quá uy tín!',
-          'Rước "$itemTitle" về với giá $formattedAmount, nhìn thì mê nhưng nhìn ví thì hơi tê.',
+          'Chốt đơn "$itemTitle" ($formattedAmount) lúc đang mất kiểm soát lý trí đúng không $payerName?',
+          'Đốt sạch $formattedAmount vào "$itemTitle" nhanh như chớp! Mua vì cần hay vì ngứa tay bấm thanh toán vậy?',
+          'Lại tự thưởng "$itemTitle" mất $formattedAmount — cuối tháng ngồi ngắm món này thay cơm luôn nhé $payerName!',
+          'Quẹt $formattedAmount cho "$itemTitle" không run tay, phong thái đại gia hết chỗ chê mỗi tội ví đang gào khóc.',
+          'Rước "$itemTitle" về với giá $formattedAmount, hộp hàng thì to còn niềm tin vào số dư thì nhỏ dần.',
         ],
         closers: genericClosers,
       );
@@ -977,10 +980,10 @@ class HybridNlpService {
       if (amountVnd >= 100000) {
         return (
           openers: [
-            'Đại tiệc "$itemTitle" ngốn luôn $formattedAmount! Hôm nay $payerName ăn như rồng cuốn.',
-            'Một bữa "$itemTitle" giá $formattedAmount — dạ dày hạnh phúc nhưng chiếc ví vừa xin nghỉ việc.',
-            'Chi hẳn $formattedAmount cho "$itemTitle", đúng kiểu ăn bù cho cả tuần trước.',
-            'Bữa "$itemTitle" ($formattedAmount) chất lượng đấy, chỉ tiếc là nó hơi nặng đô với ví sinh viên.',
+            'Đại tiệc "$itemTitle" ngốn luôn $formattedAmount! Hôm nay $payerName ăn như rồng cuốn, mai nhịn như tu sĩ luôn nhé.',
+            'Một bữa "$itemTitle" giá $formattedAmount — dạ dày mở tiệc linh đình còn chiếc ví thì vừa lên xe cấp cứu!',
+            'Chi hẳn $formattedAmount cho "$itemTitle", ăn một bữa bằng tiền cơm sinh viên cả tuần cộng lại.',
+            'Bữa "$itemTitle" ($formattedAmount) sang xịn mịn thật đấy, mỗi tội nó đá bay nửa tháng lương của $payerName.',
           ],
           closers: genericClosers,
         );
@@ -988,26 +991,26 @@ class HybridNlpService {
       if (amountVnd <= 35000) {
         return (
           openers: [
-            'Bữa "$itemTitle" $formattedAmount khá biết điều đấy $payerName!',
-            'Ghi nhận "$itemTitle" giá hạt dẻ $formattedAmount — hiếm khi thấy $payerName tiêu gọn gàng thế này.',
-            'Ăn "$itemTitle" hết $formattedAmount, chuẩn bài sinh viên tiết kiệm!',
-            'Khoản "$itemTitle" ($formattedAmount) rất nhẹ nhàng, chưa làm ví bị tổn thương.',
+            'Bữa "$itemTitle" $formattedAmount hiếm thấy biết điều đấy $payerName, tưởng nay lại đòi ăn sơn hào hải vị chứ!',
+            'Ghi nhận "$itemTitle" giá hạt dẻ $formattedAmount — nay ngoan bất thường thế $payerName, có âm mưu mua gì đắt hơn đúng không?',
+            'Ăn "$itemTitle" hết $formattedAmount, chuẩn bài sinh tồn! Tiếc là hiếm khi thấy $payerName giữ được phong độ này quá 2 ngày.',
+            'Khoản "$itemTitle" ($formattedAmount) gọn nhẹ bất ngờ, chiếc ví tạm thời chưa phải gọi cấp cứu.',
           ],
           closers: [
-            'Giữ phong độ này thì hôm nay vẫn dư $formattedSafe, đường băng còn $predictedRunwayDays ngày.',
-            'Nhưng $payerName đừng lấy cớ ăn rẻ rồi lát lại tự thưởng ly trà sữa 60k nhé!',
-            'Nếu bữa nào cũng hợp lý thế này thì cuối tháng khỏi phải nhìn mì gói nữa.',
-            'Pin ví hôm nay vẫn khỏe ở mức $formattedSafe, tiếp tục phát huy!',
+            'Giữ phong độ này thì hôm nay còn dư $formattedSafe, nhưng đừng lấy cớ ăn rẻ rồi lát lại tự thưởng trà sữa 60k nhé!',
+            'Pin ví hôm nay còn $formattedSafe, đường băng $predictedRunwayDays ngày — đừng phá vỡ thành tích này vào tối nay!',
+            'Ăn bữa này xong nhớ khóa app mua sắm lại, không thì công sức tiết kiệm lại đổ sông đổ biển!',
+            'Hạn mức còn $formattedSafe — coi như hôm nay $payerName được tha tội vung tay một lần.',
           ],
         );
       }
       return (
         openers: [
-          'Vừa nạp năng lượng bằng "$itemTitle" hết $formattedAmount cho $payerName.',
-          'Đã trừ $formattedAmount cho món "$itemTitle" — có thực mới vực được deadline.',
-          'Món "$itemTitle" ($formattedAmount) đã lên sổ gọn gàng.',
-          'Lại $formattedAmount ra đi vì "$itemTitle", tốc độ ăn uống của $payerName rất đều đặn.',
-          'Một pha giải cứu chiếc bụng đói bằng "$itemTitle" ($formattedAmount).',
+          'Nạp năng lượng bằng "$itemTitle" hết $formattedAmount — bụng $payerName no căng còn ví thì teo tóp thấy rõ.',
+          'Đã trừ $formattedAmount cho món "$itemTitle" — ăn xong nhớ khóa app đặt đồ lại kẻo tối lại buồn mồm nhé $payerName!',
+          'Món "$itemTitle" ($formattedAmount) đã lên sổ, tốc độ ăn tiêu của $payerName đúng là không có nút phanh.',
+          'Lại $formattedAmount bay màu vì "$itemTitle", cứ ăn uống đều đặn mức này là cuối tháng hít khí trời.',
+          'Giải cứu cái bụng đói bằng "$itemTitle" ($formattedAmount), đổi lại làm chiếc ví của $payerName bị tổn thương sâu sắc.',
         ],
         closers: genericClosers,
       );
@@ -1015,11 +1018,11 @@ class HybridNlpService {
 
     return (
       openers: [
-        'Khoản "$itemTitle" ($formattedAmount) từ đâu rơi xuống thế $payerName?',
-        'Đã ghi sổ "$itemTitle" (-$formattedAmount) — những khoản phát sinh thế này hay làm ví bay hơi nhanh nhất.',
-        'Vừa bay $formattedAmount cho "$itemTitle" của $payerName.',
-        'Thêm một giao dịch "$itemTitle" trị giá $formattedAmount không kịp suy nghĩ.',
-        'Quẹt $formattedAmount cho "$itemTitle" quá mượt mà!',
+        'Khoản "$itemTitle" ($formattedAmount) từ đâu chui ra thế $payerName? Lại tiêu kiểu không thèm nhìn giá đúng không!',
+        'Đã ghi sổ "$itemTitle" (-$formattedAmount) — mấy khoản linh tinh không tên thế này mới là sát thủ bóp cổ ví của $payerName!',
+        'Vừa bay $formattedAmount cho "$itemTitle" cái vèo, tiền ra nhanh như nước lũ còn tiền vào thì nhỏ giọt.',
+        'Thêm một giao dịch "$itemTitle" trị giá $formattedAmount không kịp suy nghĩ, $payerName giàu ngầm à?',
+        'Quẹt $formattedAmount cho "$itemTitle" mượt như sunsilk, chỉ có số dư là đang khóc ròng!',
       ],
       closers: genericClosers,
     );
@@ -1038,47 +1041,48 @@ class HybridNlpService {
   }) {
     final List<String> genericClosers = [
       if (remainingDailySafeVnd <= 0)
-        'Hạn mức hôm nay đã hết, bạn nên tạm dừng các khoản chi chưa cấp thiết đến hết ngày.'
+        'Hạn mức hôm nay đã hết ($formattedSafe), bạn nên ngưng các khoản chi chưa cấp thiết đến hết ngày.'
       else
-        'Hạn mức an toàn còn lại hôm nay là $formattedSafe, bạn vẫn kiểm soát tốt nhịp chi tiêu.',
+        'Hạn mức an toàn hôm nay còn $formattedSafe, bạn vẫn có thể kiểm soát tốt nếu giữ nhịp chi hiện tại.',
       if (predictedRunwayDays <= 10)
-        'Lưu ý: Đường băng tài chính còn $predictedRunwayDays ngày, hãy ưu tiên các nhu cầu thiết yếu.'
+        'Lưu ý đường băng chỉ còn $predictedRunwayDays ngày: hãy ưu tiên tối đa cho nhu cầu thiết yếu như ăn uống cơ bản và đi lại.'
       else
-        'Đường băng tài chính duy trì ổn định ở mức $predictedRunwayDays ngày đến cuối chu kỳ.',
-      'Mẹo nhỏ: rà soát lại các khoản chi lặp lại vào cuối tuần sẽ giúp bạn tiết kiệm thêm 10–15%.',
-      'Hãy thử áp dụng quy tắc chờ 24 giờ cho các món không thiết yếu tiếp theo nhé.',
-      'Ghi chép đều đặn như hiện tại là bước quan trọng nhất để không bị thâm hụt cuối tháng.',
+        'Đường băng tài chính duy trì ở mức $predictedRunwayDays ngày, bạn nên dành phần dư sang quỹ dự phòng cuối tháng.',
     ];
 
     if (amountVnd >= 100000000) {
       return (
         openers: [
           'Đã hạch toán khoản giao dịch lớn "$itemTitle" ($formattedAmount) cho $payerName.',
-          'Khoản "$itemTitle" ($formattedAmount) có giá trị rất lớn so với ngân sách tháng thông thường.',
-          'Hệ thống đã lưu "$itemTitle" (-$formattedAmount) vào sổ cái.',
+          'Khoản "$itemTitle" ($formattedAmount) vượt xa quy mô ngân sách sinh hoạt tháng thông thường.',
+          'Hệ thống đã ghi nhận "$itemTitle" (-$formattedAmount) vào sổ cái.',
         ],
         closers: [
-          'Nếu đây là khoản chi chung hoặc đầu tư dài hạn, bạn nên tách riêng khỏi ngân sách sinh hoạt hàng ngày.',
-          'Kiểm tra lại xem khoản này có cần chia sẻ lại trong tab Chia Tiền QR không nhé.',
-          'Đường băng tháng hiện điều chỉnh về $predictedRunwayDays ngày; hãy kiểm tra lại hạn mức nếu vừa nhập thử.',
+          'Với khoản giá trị lớn như "$itemTitle", bạn nên tách khỏi quỹ tiêu dùng hàng ngày để không làm méo hạn mức sinh hoạt.',
+          'Nếu đây là khoản mua sắm chung hoặc ứng hộ, hãy tạo mục chia ngay trong tab Chia Tiền QR để thu hồi vốn.',
+          'Đường băng tháng hiện điều chỉnh về $predictedRunwayDays ngày; hãy kiểm tra lại kế hoạch phân bổ ngân sách.',
         ],
       );
     }
 
     if (category == ExpenseCategory.bobaAndCafe) {
+      final bool isCoffee = lower.contains('cafe') ||
+          lower.contains('cà phê') ||
+          lower.contains('bạc xỉu') ||
+          lower.contains('cf');
       return (
         openers: [
-          'Đã ghi nhận "$itemTitle" ($formattedAmount) cho $payerName.',
-          'Khoản đồ uống "$itemTitle" ($formattedAmount) đã được cập nhật vào nhóm Trà sữa & Cafe.',
+          'Đã ghi nhận khoản đồ uống "$itemTitle" ($formattedAmount) cho $payerName.',
+          'Khoản "$itemTitle" (-$formattedAmount) đã được tính vào nhóm Trà sữa & Cafe.',
           '$payerName vừa chi $formattedAmount cho "$itemTitle".',
-          'Đã hạch toán "$itemTitle" (-$formattedAmount).',
         ],
         closers: [
-          'Nếu giảm bớt 2 ly ngoài quán mỗi tuần, bạn có thể để dành thêm khoảng 350.000đ–400.000đ/tháng.',
-          'Gợi ý: tự pha cà phê hoặc trà tại phòng giúp tiết kiệm tới 70% chi phí đồ uống.',
-          'Các khoản nhỏ lẻ dưới 60k thường chiếm tới 15% ngân sách nếu không đặt trần tuần.',
-          'Hạn mức hôm nay còn $formattedSafe — bạn có thể cân đối bằng cách tự nấu bữa tối.',
-          ...genericClosers.take(2),
+          if (isCoffee)
+            'Lời khuyên tài chính: với "$itemTitle", mua gói cà phê pha phin hoặc cold brew tự pha tại nhà chỉ tốn khoảng 5.000đ–8.000đ/ly, giúp tiết kiệm 70% mỗi tháng.'
+          else
+            'Lời khuyên tài chính: nếu giảm tần suất "$itemTitle" xuống tối đa 1–2 ly/tuần và thay bằng trà tự ủ hoặc nước ép tại nhà, bạn sẽ tiết kiệm thêm khoảng 350.000đ–500.000đ/tháng.',
+          'Hạn mức ngày còn $formattedSafe; bạn hãy đặt trần riêng cho nhóm đồ uống dưới 10% ngân sách tháng để tránh rò rỉ tiền lẻ.',
+          'Với giá $formattedAmount cho "$itemTitle", hãy cân đối bằng cách tự nấu bữa tối hôm nay để giữ đường băng $predictedRunwayDays ngày.',
         ],
       );
     }
@@ -1086,45 +1090,63 @@ class HybridNlpService {
     if (category == ExpenseCategory.dormAndUtilities) {
       return (
         openers: [
-          'Khoản chi cố định "$itemTitle" ($formattedAmount) của $payerName đã được lưu.',
-          'Đã cập nhật hóa đơn "$itemTitle" ($formattedAmount) vào sổ.',
-          'Ghi nhận "$itemTitle" (-$formattedAmount) thuộc nhóm Phòng trọ & Điện nước.',
+          'Khoản sinh hoạt cố định "$itemTitle" ($formattedAmount) của $payerName đã được lưu.',
+          'Đã cập nhật hóa đơn "$itemTitle" ($formattedAmount) vào nhóm Phòng trọ & Điện nước.',
+          'Ghi nhận "$itemTitle" (-$formattedAmount) do $payerName chi trả.',
         ],
         closers: [
-          'Bạn có thể chuyển sang tab Chia Tiền QR để chia đều và thu lại phần của các bạn cùng phòng.',
-          'Tất toán sớm các hóa đơn chung giúp cả nhóm nắm chính xác số tiền khả dụng thực tế.',
-          'Mẹo tiết kiệm: tắt bình nóng lạnh khi không dùng và để điều hòa 26–27°C giúp giảm 15% tiền điện.',
-          'Hạn mức cá nhân hôm nay còn $formattedSafe, đường băng còn $predictedRunwayDays ngày.',
+          if (lower.contains('điện') || lower.contains('nước'))
+            'Lời khuyên tài chính: với "$itemTitle", hãy đẩy ngay sang tab Chia Tiền QR để thu đủ phần bạn cùng phòng và giữ điều hòa ở 26–27°C nhằm giảm 15–20% hóa đơn tháng sau.'
+          else if (lower.contains('giặt') ||
+              lower.contains('rửa') ||
+              lower.contains('giấy'))
+            'Lời khuyên tài chính: khi mua vật tư phòng như "$itemTitle", mua can/lốc dung tích lớn theo quỹ chung rồi chia VietQR giúp rẻ hơn 20–30% so với mua lẻ.'
+          else
+            'Lời khuyên tài chính: "$itemTitle" là khoản sinh hoạt chung — hãy chốt chia đều qua tab Chia Tiền QR ngay trong ngày để không bị đọng vốn cá nhân.',
+          'Hạn mức cá nhân hôm nay còn $formattedSafe, đường băng phòng hiện ở mức $predictedRunwayDays ngày.',
         ],
       );
     }
 
     if (category == ExpenseCategory.transport) {
+      final bool isFuel = lower.contains('xăng') || lower.contains('nhớt');
       return (
         openers: [
           'Đã lưu chi phí di chuyển "$itemTitle" ($formattedAmount) của $payerName.',
-          'Khoản "$itemTitle" ($formattedAmount) đã được cộng vào nhóm Di chuyển.',
-          'Ghi nhận $formattedAmount cho chuyến "$itemTitle".',
+          'Khoản "$itemTitle" (-$formattedAmount) đã được cộng vào nhóm Di chuyển.',
+          'Ghi nhận $formattedAmount cho "$itemTitle".',
         ],
         closers: [
-          'Với quãng đường ngắn dưới 2km hoặc tiện tuyến, kết hợp xe buýt sẽ giúp tiết kiệm đáng kể.',
-          'Bạn có thể tận dụng gói hội viên đặt xe hoặc đi chung cùng bạn học để giảm 20–30% phí đi lại.',
-          ...genericClosers.take(3),
+          if (isFuel)
+            'Lời khuyên tài chính: với khoản "$itemTitle", kiểm tra áp suất lốp định kỳ và giữ ga đều giúp giảm 10–15% mức tiêu hao nhiên liệu hàng tháng.'
+          else
+            'Lời khuyên tài chính: với "$itemTitle", nếu đi tuyến cố định tới trường/chỗ làm, dùng vé tháng xe buýt hoặc ghép chuyến cùng bạn sẽ giảm 30–50% chi phí so với đặt lẻ.',
+          'Ngân sách an toàn hôm nay còn $formattedSafe và đường băng còn $predictedRunwayDays ngày.',
         ],
       );
     }
 
     if (category == ExpenseCategory.entertainment) {
+      final bool isShopping = lower.contains('shopee') ||
+          lower.contains('lazada') ||
+          lower.contains('tiktok') ||
+          lower.contains('áo') ||
+          lower.contains('quần') ||
+          lower.contains('giày') ||
+          lower.contains('son') ||
+          lower.contains('mỹ phẩm');
       return (
         openers: [
           'Khoản giải trí & mua sắm "$itemTitle" ($formattedAmount) đã được ghi nhận.',
           '$payerName vừa chi $formattedAmount cho "$itemTitle".',
-          'Đã hạch toán "$itemTitle" (-$formattedAmount) vào nhóm Giải trí & Mua sắm.',
+          'Đã hạch toán "$itemTitle" (-$formattedAmount) vào sổ chi tiêu.',
         ],
         closers: [
-          'Theo nguyên tắc 50/30/20, nhóm giải trí & mua sắm nên giữ dưới 20–30% tổng ngân sách tháng.',
-          'Hãy cân đối giảm nhẹ các khoản ăn vặt trong 1–2 ngày tới để bù lại khoản này nhé.',
-          ...genericClosers.take(3),
+          if (isShopping)
+            'Lời khuyên tài chính: trước các đơn mua sắm như "$itemTitle", hãy áp dụng quy tắc chờ 48 giờ trong giỏ hàng và giới hạn nhóm mua sắm dưới 15% thu nhập tháng.'
+          else
+            'Lời khuyên tài chính: với khoản giải trí "$itemTitle", hãy quy đổi chi phí sang số giờ làm thêm hoặc áp dụng giới hạn tuần để không lẹm vào quỹ ăn uống thiết yếu.',
+          'Hạn mức còn lại hôm nay là $formattedSafe; bạn nên siết nhẹ các khoản ăn vặt trong 1–2 ngày tới để cân bằng lại.',
         ],
       );
     }
@@ -1135,14 +1157,13 @@ class HybridNlpService {
           'Bữa "$itemTitle" ($formattedAmount) của $payerName đã được ghi nhận.',
           'Đã lưu "$itemTitle" (-$formattedAmount) vào nhóm Ăn uống.',
           'Hạch toán thành công "$itemTitle" ($formattedAmount).',
-          'Ghi sổ bữa "$itemTitle" trị giá $formattedAmount cho $payerName.',
         ],
         closers: [
-          if (amountVnd >= 90000)
-            'Khoản ăn uống này hơi cao hơn mức trung bình ngày; ngày mai bạn có thể chọn bữa cơm nhẹ nhàng hơn để cân bằng.'
+          if (amountVnd >= 100000)
+            'Lời khuyên tài chính: khoản "$itemTitle" ($formattedAmount) khá cao so với bữa ăn thường ngày; trong 2 ngày tới bạn nên ưu tiên tự nấu cơm hoặc ăn suất 30–35k để bù lại quỹ ($formattedSafe còn lại hôm nay).'
           else
-            'Mức chi ăn uống này khá hợp lý, giúp bảo vệ năng lượng học tập mà không phá vỡ kế hoạch ngày.',
-          ...genericClosers.take(4),
+            'Lời khuyên tài chính: mức chi $formattedAmount cho "$itemTitle" khá cân đối; tự chuẩn bị thêm bữa sáng đơn giản tại phòng sẽ giúp bạn tiết kiệm thêm 400k–600k mỗi tháng.',
+          ...genericClosers,
         ],
       );
     }
@@ -1151,9 +1172,11 @@ class HybridNlpService {
       openers: [
         'Đã ghi nhận khoản "$itemTitle" ($formattedAmount) của $payerName.',
         'Khoản phát sinh "$itemTitle" ($formattedAmount) đã được cập nhật vào sổ.',
-        'Hạch toán thành công "$itemTitle" (-$formattedAmount).',
       ],
-      closers: genericClosers,
+      closers: [
+        'Lời khuyên tài chính: với các khoản phát sinh như "$itemTitle", hãy ghi chú rõ mục đích và rà soát lại vào cuối tuần để lập quỹ dự phòng riêng từ 5–10% ngân sách.',
+        ...genericClosers,
+      ],
     );
   }
 
@@ -1253,19 +1276,19 @@ class HybridNlpService {
           : recentResponses.take(4).map((r) => '- "$r"').join('\n');
 
       const systemRules = '''
-Bạn là SavageBot — trợ lý quản lý tài chính sinh viên Gen Z Việt Nam với 2 nhân cách đối lập tuyệt đối.
-BẮT BUỘC TUÂN THỦ CÁC QUY TẮC SAU:
-1. ĐẦU RA: Chỉ trả về JSON hợp lệ theo schema {"savage": string, "coach": string}. Hai trường phải khác hẳn nhau về giọng điệu, góc nhìn và từ vựng.
-2. CẤM TUYỆT ĐỐI: Không dùng bất kỳ emoji/icon nào, không markdown (*, **, #), không gạch đầu dòng, không xuống dòng, không chào hỏi rườm rà.
-3. ĐỘ DÀI: Mỗi trường dài đúng 1 đến 2 câu ngắn gọn (22 đến 42 từ), vừa khít bong bóng chat điện thoại.
-4. BÁM SÁT NGỮ CẢNH: Bắt buộc nhắc trực tiếp tên người thực hiện, nội dung món/khoản, số tiền và gắn với hạn mức ngày còn lại hoặc số ngày sống sót trong tháng.
-5. RÀO CHẶT GIỌNG "savage" (Chế độ Mỏ Hỗn): Bắt buộc đóng vai bạn thân cùng phòng xéo xắt, cà khịa thông minh, hài hước, không khuyên nhủ sáo rỗng, không thô tục.
-   - Nếu là CHI TIÊU (-): món <= 35.000đ thì khen đểu kiểu "hiếm thấy biết điều" kèm cảnh báo nhẹ; trà sữa/cafe/shopping/chi lớn thì khịa thẳng nguy cơ ăn mì gói cuối tháng.
-   - Nếu là THU NHẬP (+): châm chọc kiểu "vừa có tiền đừng vội tưởng mình tài phiệt rồi đốt sạch vào trà sữa/Shopee", nhắc giữ ví trước khi hết tháng.
-6. RÀO CHẶT GIỌNG "coach" (Chế độ Quân Sư): Bắt buộc đóng vai cố vấn tài chính điềm tĩnh, lịch sự, chuyên nghiệp, tuyệt đối không cà khịa hay mỉa mai.
-   - Nếu là CHI TIÊU (-): đánh giá tác động vào hạn mức ngày/đường băng và đưa ra ĐÚNG 1 mẹo tiết kiệm cụ thể cho chính món vừa mua.
-   - Nếu là THU NHẬP (+): chúc mừng điềm đạm và gợi ý tỷ lệ phân bổ cụ thể (ví dụ trích 20% dự phòng, phần còn lại chia cho quỹ sinh hoạt).
-7. CHỐNG LẶP MÔ TÍP: Tuyệt đối không dùng lại cách mở câu (ví dụ "Đấy lại...", "Ê...", "Lại một...") hoặc cấu trúc câu giống các câu gần đây.
+Bạn là SavageBot — trợ lý tài chính sinh viên Gen Z Việt Nam gồm 2 nhân cách đối lập tuyệt đối.
+BẮT BUỘC TUÂN THỦ:
+1. ĐẦU RA: Chỉ trả về JSON hợp lệ theo schema {"savage": string, "coach": string}. Tuyệt đối không emoji/icon, không markdown (*, **, #), không gạch đầu dòng, không xuống dòng.
+2. ĐỘ DÀI: Mỗi trường 1 đến 2 câu súc tích (24 đến 48 từ), vừa khít bong bóng chat.
+3. BÁM SÁT MÓN VỪA TIÊU: Cả 2 mode BẮT BUỘC phải gọi đúng tên người, đúng tên món/khoản "$itemTitle", đúng số tiền và đưa lời bình/lời khuyên gắn trực tiếp với BẢN CHẤT của món đó (không nói chung chung na ná nhau giữa các món khác nhau).
+4. RÀO CHẶT GIỌNG "savage" (Mỏ Hỗn — PHẢI ĐANH ĐÁ, XÉO XẮT, PHŨ PHÀNG MẶN MÀ, KHÔNG ĐƯỢC HIỀN):
+   - Đóng vai bạn thân cùng phòng mỏ hỗn: cà khịa cực gắt vào thói vung tay, ví thở oxy, ăn mì gói không người lái, cúng tiền cho tư bản. Cấm tuyệt đối văn phong hiền lành, an ủi hay khuyên nhủ đạo lý.
+   - Nếu chi <= 35.000đ: khen đểu kiểu "hôm nay ngoan bất thường, tưởng lại định phá ví chứ" kèm cảnh báo nhẹ.
+   - Nếu là THU NHẬP (+): chọc ngoáy kiểu "vừa có tiền đừng tưởng mình tài phiệt rồi đốt sạch trong 1 đêm".
+5. RÀO CHẶT GIỌNG "coach" (Quân Sư — TƯ VẤN TÀI CHÍNH CHUYÊN SÂU THEO TỪNG MÓN):
+   - Đóng vai cố vấn tài chính điềm tĩnh, lịch sự, tuyệt đối không cà khịa.
+   - PHẢI phân tích tác động vào hạn mức ngày/đường băng VÀ đưa ra ĐÚNG 1 lời khuyên tài chính thực tế đặc thù cho CHÍNH món vừa nhập (ví dụ: trà sữa/cafe -> tự pha giảm 70%; ăn lẩu/nướng -> bù bằng bữa tự nấu 2 ngày tới; shopping -> quy tắc chờ 48h & giới hạn % ngân sách; điện/nước/trọ -> đẩy chia QR đòi phòng & tối ưu công suất; thu nhập -> trích % dự phòng 50/30/20).
+6. CHỐNG LẶP MÔ TÍP: Không lặp cấu trúc mở câu giống các câu gần đây.
 ''';
 
       final userPrompt = '''
@@ -1298,9 +1321,9 @@ $recentBlock
           },
         ],
         'generationConfig': {
-          'temperature': 0.92,
+          'temperature': 0.95,
           'topP': 0.95,
-          'maxOutputTokens': 320,
+          'maxOutputTokens': 1024,
           'responseMimeType': 'application/json',
           'responseSchema': {
             'type': 'OBJECT',
@@ -1308,12 +1331,12 @@ $recentBlock
               'savage': {
                 'type': 'STRING',
                 'description':
-                    'Phản hồi giọng Mỏ Hỗn Gen Z xéo xắt, hài hước (22-42 từ), nhắc tên người, món, số tiền và hạn mức/đường băng; không emoji, không khuyên nhủ đạo lý.',
+                    'Phản hồi giọng Mỏ Hỗn cực kỳ đanh đá, xéo xắt mặn mà, cà khịa thẳng vào đúng món vừa chi (24-48 từ), nhắc tên người, tên món, số tiền và hạn mức/đường băng; tuyệt đối không hiền, không khuyên đạo lý, không emoji.',
               },
               'coach': {
                 'type': 'STRING',
                 'description':
-                    'Phản hồi giọng Quân Sư tài chính điềm tĩnh, lịch sự (22-42 từ), nhắc tên người, món, số tiền, hạn mức/đường băng và 1 mẹo tiết kiệm/phân bổ cụ thể; không cà khịa, không emoji.',
+                    'Phản hồi giọng Quân Sư tài chính điềm tĩnh, đưa lời khuyên tài chính cụ thể theo đúng bản chất món vừa mua hoặc khoản thu vừa nhận (24-48 từ), nhắc hạn mức/đường băng; không cà khịa, không emoji.',
               },
             },
             'required': ['savage', 'coach'],

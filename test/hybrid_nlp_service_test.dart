@@ -595,5 +595,37 @@ void main() {
       expect(deleted, isNotNull);
       expect(notifier.state.monthlyBudget, initialBudget);
     });
+
+    test('auto-splits prior shared living expenses evenly when roommates are added later', () {
+      final notifier =
+          SavageBotNotifier(enablePersistence: false, startWithDemo: false);
+      notifier.completeNewUserOnboarding(
+        groupName: 'Ví Hưng',
+        members: const ['Hưng'],
+        treasurerName: 'Hưng',
+        bankBin: '970422',
+        bankAccount: '0846281007',
+        monthlyBudget: 4500000,
+      );
+
+      // Add a shared living expense while only 1 member exists
+      notifier.addExpenseFromInput('tiền điện 600k', isSharedRoomExpense: true);
+      expect(notifier.state.splitItems.length, 1);
+      expect(notifier.state.shareForRoommate('Hưng'), 600000);
+
+      // Now add 2 more roommates -> should auto-split 600k / 3 = 200k each
+      notifier.updateGroupSettings(
+        groupName: 'Phòng 302',
+        members: const ['Hưng', 'Tuấn', 'Minh'],
+        treasurerName: 'Hưng',
+        bankBin: '970422',
+        bankAccount: '0846281007',
+        monthlyBudget: 4500000,
+      );
+
+      expect(notifier.state.shareForRoommate('Hưng'), 200000);
+      expect(notifier.state.shareForRoommate('Tuấn'), 200000);
+      expect(notifier.state.shareForRoommate('Minh'), 200000);
+    });
   });
 }

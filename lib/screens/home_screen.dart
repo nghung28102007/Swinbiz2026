@@ -79,21 +79,14 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
   void _onInputChanged() {
     final raw = _inputController.text;
     final parsed = HybridNlpService.parseNaturalInput(raw);
-    final members = ref.read(savageBotProvider).members;
     setState(() {
       _liveParsedPreview = parsed;
       if (raw.trim().isEmpty) {
         _isSharedRoomExpense = false;
         _sharedToggleManualOverride = false;
       } else if (!_sharedToggleManualOverride && parsed != null) {
-        final bool hasExplicitShareWords =
-            HybridNlpService.isLikelySharedExpense(
-          raw,
-          ExpenseCategory.other,
-        );
-        _isSharedRoomExpense = hasExplicitShareWords ||
-            (members.length > 1 &&
-                HybridNlpService.isLikelySharedExpense(raw, parsed.category));
+        _isSharedRoomExpense =
+            HybridNlpService.isLikelySharedExpense(raw, parsed.category);
       }
     });
   }
@@ -184,15 +177,11 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
 
   void _submitExpense(String rawText, {bool? forceShared}) {
     final notifier = ref.read(savageBotProvider.notifier);
-    final botState = ref.read(savageBotProvider);
     final parsed = HybridNlpService.parseNaturalInput(rawText);
-    final bool isGroup = botState.members.length > 1;
-    final bool shouldShare = forceShared != null
-        ? (forceShared && isGroup)
-        : (_sharedToggleManualOverride
+    final bool shouldShare = forceShared ??
+        (_sharedToggleManualOverride
             ? _isSharedRoomExpense
-            : ((isGroup &&
-                    parsed != null &&
+            : ((parsed != null &&
                     HybridNlpService.isLikelySharedExpense(
                       rawText,
                       parsed.category,

@@ -1480,28 +1480,72 @@ class SavageBotNotifier extends StateNotifier<SavageBotState> {
     final int validBudget = monthlyBudget.clamp(500000, 100000000);
     final int newDailyBase = (validBudget / 30).round().clamp(20000, 10000000);
 
-    final int spentToday = (state.dailyBaseAllowance - state.dailySafeToSpend)
-        .clamp(0, validBudget);
-    final int updatedSafeToday =
-        (newDailyBase - spentToday).clamp(0, newDailyBase);
-    final int remainingMonth =
-        (validBudget - state.totalSpentThisMonth).clamp(0, validBudget);
-    final int updatedRunway =
-        (remainingMonth / newDailyBase).floor().clamp(1, 30);
+    final List<String> newMembers =
+        cleanedMembers.where((m) => !state.members.contains(m)).toList();
 
-    final updatedSplits = state.splitItems.map((item) {
+    final List<RoommateSplitItem> updatedSplits = state.splitItems.map((item) {
       final filtered = item.assignedRoommates
           .where((r) => cleanedMembers.contains(r))
           .toList();
-      return item.copyWith(
-        assignedRoommates: filtered.isEmpty ? cleanedMembers : filtered,
-      );
+      final bool wasFullRoomSplit =
+          item.assignedRoommates.length >= state.members.length;
+      if (filtered.isEmpty || wasFullRoomSplit) {
+        return item.copyWith(
+          assignedRoommates: List<String>.from(cleanedMembers),
+        );
+      }
+      if (newMembers.isNotEmpty) {
+        return item.copyWith(
+          assignedRoommates: {...filtered, ...newMembers}.toList(),
+        );
+      }
+      return item.copyWith(assignedRoommates: filtered);
+    }).toList();
+
+    final List<ExpenseTransaction> updatedTransactions =
+        state.transactions.map((tx) {
+      if (tx.isIncome ||
+          !HybridNlpService.isLikelySharedExpense(tx.rawInput, tx.category)) {
+        return tx;
+      }
+      final String inferredId = _inferredSplitIdForTx(tx);
+      final String actualSplitId =
+          inferredId.isEmpty ? 'split-${tx.id}' : inferredId;
+      final bool alreadyInSplits =
+          updatedSplits.any((s) => s.id == actualSplitId);
+      if (!alreadyInSplits) {
+        updatedSplits.insert(
+          0,
+          RoommateSplitItem(
+            id: actualSplitId,
+            title: tx.title,
+            totalAmountVnd: tx.amountVnd,
+            assignedRoommates: List<String>.from(cleanedMembers),
+          ),
+        );
+        return tx.copyWith(
+          linkedSplitId: actualSplitId,
+          isSettled: false,
+        );
+      }
+      return tx;
     }).toList();
 
     final Map<String, bool> updatedSettled = {
       for (final m in cleanedMembers)
         m: state.settledByMember[m] ?? false,
     };
+
+    final int updatedSafeToday = _calculateDailySafeToSpend(
+      transactions: updatedTransactions,
+      splitItems: updatedSplits,
+      settledByMember: updatedSettled,
+      overrideDailyBase: newDailyBase,
+    );
+    final int remainingMonth =
+        (validBudget - state.totalSpentThisMonth).clamp(0, validBudget);
+    final int updatedRunway =
+        (remainingMonth / newDailyBase).floor().clamp(1, 30);
 
     state = state.copyWith(
       groupName: validGroup,
@@ -1516,6 +1560,7 @@ class SavageBotNotifier extends StateNotifier<SavageBotState> {
       predictedRunwayDays: updatedRunway,
       activePayer: validPayer,
       selectedRoommateForQr: validQrMember,
+      transactions: updatedTransactions,
       splitItems: updatedSplits,
       settledByMember: updatedSettled,
     );
