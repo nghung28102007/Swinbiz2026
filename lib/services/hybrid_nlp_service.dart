@@ -1152,11 +1152,11 @@ class HybridNlpService {
   }
 
   static const List<String> _geminiKeyReversedSegments = [
-    'I6NR8bA.QA',
-    'cpNE2KzJDc',
-    'AZ2yYSXsFN',
-    'Ipxsq3_vlG',
-    'AOMgwjdUC3wtK',
+    'J6NR8bA.QA',
+    'xkCuWY-cjM',
+    'oKwfC3qVK0',
+    'I-YgtFgyRR',
+    'g4JSKd9y9p8lc',
   ];
 
   static const String _envGeminiApiKey =
@@ -1211,7 +1211,10 @@ class HybridNlpService {
       return http
           .post(
             vertexUri,
-            headers: const {'Content-Type': 'application/json'},
+            headers: {
+              'Content-Type': 'application/json',
+              'X-goog-api-key': apiKey,
+            },
             body: requestBody,
           )
           .timeout(timeout);

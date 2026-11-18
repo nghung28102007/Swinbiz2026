@@ -500,7 +500,7 @@ void main() {
       final key = HybridNlpService.resolveGeminiApiKey();
       expect(key.length, 53);
       expect(key.startsWith('AQ.'), isTrue);
-      expect(key.endsWith('MOA'), isTrue);
+      expect(key.endsWith('J4g'), isTrue);
       expect(
         HybridNlpService.resolveGeminiApiKey(customKey: '  custom-key-123  '),
         'custom-key-123',
