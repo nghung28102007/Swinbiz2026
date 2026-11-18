@@ -802,10 +802,44 @@ class SavageBotNotifier extends StateNotifier<SavageBotState> {
   void addMultiItemReceiptScan({
     OcrReceiptTemplate template = OcrReceiptTemplate.circleK,
   }) {
+    final bool isDormTemplate = template == OcrReceiptTemplate.dormUtilities;
+    _commitReceiptItems(
+      sourceLabel: template.label,
+      totalVnd: template.totalVnd,
+      latencyMs: 620.0,
+      items: template.items
+          .map(
+            (item) => ScannedReceiptItem(
+              title: item.title,
+              amountVnd: item.amount,
+              category: item.category,
+              isShared: isDormTemplate,
+            ),
+          )
+          .toList(),
+    );
+  }
+
+  /// Adds real Gemini Vision OCR-extracted items from a user-uploaded receipt.
+  void addScannedReceiptResult(ScannedReceiptResult result) {
+    if (result.items.isEmpty) return;
+    _commitReceiptItems(
+      sourceLabel: result.merchant,
+      totalVnd: result.totalVnd,
+      latencyMs: result.latencyMs,
+      items: result.items,
+    );
+  }
+
+  void _commitReceiptItems({
+    required String sourceLabel,
+    required int totalVnd,
+    required double latencyMs,
+    required List<ScannedReceiptItem> items,
+  }) {
     final now = DateTime.now();
     final int baseMs = now.millisecondsSinceEpoch;
     final String payer = state.activePayer;
-    final bool isDormTemplate = template == OcrReceiptTemplate.dormUtilities;
     final int memberCount = state.members.isEmpty ? 1 : state.members.length;
 
     int runningTotalSpent = state.totalSpentThisMonth;
@@ -816,39 +850,43 @@ class SavageBotNotifier extends StateNotifier<SavageBotState> {
     final List<ExpenseTransaction> ocrTransactions = [];
     final List<RoommateSplitItem> addedSplits = [];
     bool hasBobaItem = false;
+    bool hasAnySharedItem = false;
 
-    for (int i = 0; i < template.items.length; i++) {
-      final item = template.items[i];
+    for (int i = 0; i < items.length; i++) {
+      final item = items[i];
       if (item.category == ExpenseCategory.bobaAndCafe) {
         hasBobaItem = true;
       }
-      runningTotalSpent += item.amount;
-      final int personalImpact = isDormTemplate
-          ? (item.amount / memberCount).round()
-          : item.amount;
+      if (item.isShared) {
+        hasAnySharedItem = true;
+      }
+      runningTotalSpent += item.amountVnd;
+      final int personalImpact = item.isShared
+          ? (item.amountVnd / memberCount).round()
+          : item.amountVnd;
       runningSafeToday =
           (runningSafeToday - personalImpact).clamp(0, state.dailyBaseAllowance);
       final int remainingMonth =
           (state.monthlyBudget - runningTotalSpent).clamp(0, state.monthlyBudget);
       final int runway =
           (remainingMonth / baseAllowance).floor().clamp(1, 30);
-      final String? splitId = isDormTemplate ? 'split-ocr-$baseMs-$i' : null;
+      final String? splitId = item.isShared ? 'split-ocr-$baseMs-$i' : null;
 
       ocrTransactions.add(
         ExpenseTransaction(
           id: 'tx-ocr-$baseMs-$i',
-          rawInput: '[OCR ${template.label}] ${item.title}',
+          rawInput: '[OCR $sourceLabel] ${item.title}',
           title: item.title,
-          amountVnd: item.amount,
+          amountVnd: item.amountVnd,
           category: item.category,
           timestamp: now.add(Duration(milliseconds: i)),
           payerName: payer,
           routeTier: NlpRouteTier.tier2DeepLlm,
-          latencyMs: 620.0,
+          latencyMs: latencyMs,
           savageRoast: HybridNlpService.generatePersonaResponse(
             mode: PersonaMode.savage,
             itemTitle: item.title,
-            amountVnd: item.amount,
+            amountVnd: item.amountVnd,
             category: item.category,
             remainingDailySafeVnd: runningSafeToday,
             predictedRunwayDays: runway,
@@ -857,23 +895,23 @@ class SavageBotNotifier extends StateNotifier<SavageBotState> {
           coachAdvice: HybridNlpService.generatePersonaResponse(
             mode: PersonaMode.coach,
             itemTitle: item.title,
-            amountVnd: item.amount,
+            amountVnd: item.amountVnd,
             category: item.category,
             remainingDailySafeVnd: runningSafeToday,
             predictedRunwayDays: runway,
             payerName: payer,
           ),
-          isSettled: !isDormTemplate,
+          isSettled: !item.isShared,
           linkedSplitId: splitId,
         ),
       );
 
-      if (isDormTemplate && splitId != null) {
+      if (item.isShared && splitId != null) {
         addedSplits.add(
           RoommateSplitItem(
             id: splitId,
             title: item.title,
-            totalAmountVnd: item.amount,
+            totalAmountVnd: item.amountVnd,
             assignedRoommates: List<String>.from(state.members),
           ),
         );
@@ -884,18 +922,19 @@ class SavageBotNotifier extends StateNotifier<SavageBotState> {
         (state.monthlyBudget - runningTotalSpent).clamp(0, state.monthlyBudget);
     final int finalRunway =
         (finalRemaining / baseAllowance).floor().clamp(1, 30);
-    final String formattedTotal = HybridNlpService.formatVnd(template.totalVnd);
+    final String formattedTotal = HybridNlpService.formatVnd(totalVnd);
+    final String secStr = (latencyMs / 1000).toStringAsFixed(1);
 
     final String summaryRoast =
-        'Quét 1 tờ bill ${template.label} ra liền ${template.items.length} món ($formattedTotal)! Vision AI bắt bài không trượt phát nào!';
+        'Quét 1 tờ bill $sourceLabel ra liền ${items.length} món ($formattedTotal)! Vision AI bắt bài không trượt phát nào!';
     final String summaryCoach =
-        'Vision OCR đã bóc tách tự động ${template.items.length} món từ hóa đơn ${template.label} ($formattedTotal) trong 0.6s. Tiết kiệm 45 giây nhập tay.';
+        'Vision OCR đã bóc tách tự động ${items.length} món từ hóa đơn $sourceLabel ($formattedTotal) trong ${secStr}s. Tiết kiệm 45 giây nhập tay.';
 
     state = state.copyWith(
       transactions: [...state.transactions, ...ocrTransactions],
       splitItems:
           addedSplits.isNotEmpty ? [...addedSplits, ...state.splitItems] : null,
-      settledByMember: isDormTemplate ? const {} : null,
+      settledByMember: hasAnySharedItem ? const {} : null,
       dailySafeToSpend: runningSafeToday,
       predictedRunwayDays: finalRunway,
       noBobaStreakDays: hasBobaItem ? 0 : state.noBobaStreakDays,

@@ -1,5 +1,6 @@
 import 'dart:convert';
 import 'dart:math' as math;
+import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'package:intl/intl.dart';
@@ -74,6 +75,34 @@ extension ExpenseCategoryExtension on ExpenseCategory {
 enum NlpRouteTier {
   tier1LocalRegex, // 0 VND API Cost, <10ms on-device execution
   tier2DeepLlm,    // Complex multi-turn / OCR / semantic advisory
+}
+
+class ScannedReceiptItem {
+  final String title;
+  final int amountVnd;
+  final ExpenseCategory category;
+  final bool isShared;
+
+  const ScannedReceiptItem({
+    required this.title,
+    required this.amountVnd,
+    required this.category,
+    this.isShared = false,
+  });
+}
+
+class ScannedReceiptResult {
+  final String merchant;
+  final List<ScannedReceiptItem> items;
+  final double latencyMs;
+
+  const ScannedReceiptResult({
+    required this.merchant,
+    required this.items,
+    required this.latencyMs,
+  });
+
+  int get totalVnd => items.fold(0, (sum, item) => sum + item.amountVnd);
 }
 
 class ParsedExpenseResult {
@@ -1212,5 +1241,189 @@ $recentBlock
       // Offline or rate-limited: keep the instant on-device multi-variant response
     }
     return null;
+  }
+
+  /// Sends a real receipt image to Gemini 2.5 Flash Vision with JSON Schema
+  /// to extract merchant name and itemized expenses.
+  static Future<({ScannedReceiptResult? result, String? error})>
+      scanReceiptImageWithAi({
+    required Uint8List imageBytes,
+    String mimeType = 'image/jpeg',
+    String? customApiKey,
+  }) async {
+    final stopwatch = Stopwatch()..start();
+    try {
+      final apiKey = resolveGeminiApiKey(customKey: customApiKey);
+      if (apiKey.isEmpty) {
+        return (
+          result: null,
+          error: 'Chưa cấu hình Gemini API Key để quét ảnh thật.',
+        );
+      }
+
+      const prompt = '''
+Bạn là hệ thống OCR hóa đơn tiếng Việt cho ứng dụng tài chính SavageBot.
+Hãy đọc ảnh hóa đơn / bill chuyển khoản này và trả về JSON đúng schema:
+{
+  "merchant": "Tên cửa hàng hoặc dịch vụ ngắn gọn",
+  "items": [
+    {
+      "title": "Tên món hàng/dịch vụ ngắn gọn tiếng Việt",
+      "amountVnd": 45000,
+      "category": "foodAndDrink | bobaAndCafe | transport | dormAndUtilities | entertainment | other",
+      "isShared": false
+    }
+  ]
+}
+Quy tắc:
+- amountVnd phải là số nguyên VNĐ dương (ví dụ 45.000đ -> 45000).
+- Nếu hóa đơn chỉ có tổng tiền mà không tách từng dòng, trả về 1 item mang tên merchant và tổng tiền đó.
+- isShared = true nếu là hóa đơn điện, nước, internet, tiền nhà, hoặc đồ dùng chung phòng trọ; còn lại false.
+- Nếu ảnh không phải hóa đơn hoặc không đọc được số tiền nào, trả về items = [].
+''';
+
+      final uri = Uri.parse(
+        'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent',
+      );
+
+      final response = await http
+          .post(
+            uri,
+            headers: {
+              'Content-Type': 'application/json',
+              'X-goog-api-key': apiKey,
+            },
+            body: jsonEncode({
+              'contents': [
+                {
+                  'role': 'user',
+                  'parts': [
+                    {'text': prompt},
+                    {
+                      'inlineData': {
+                        'mimeType': mimeType,
+                        'data': base64Encode(imageBytes),
+                      },
+                    },
+                  ],
+                },
+              ],
+              'generationConfig': {
+                'temperature': 0.1,
+                'maxOutputTokens': 1024,
+                'responseMimeType': 'application/json',
+                'responseSchema': {
+                  'type': 'OBJECT',
+                  'properties': {
+                    'merchant': {'type': 'STRING'},
+                    'items': {
+                      'type': 'ARRAY',
+                      'items': {
+                        'type': 'OBJECT',
+                        'properties': {
+                          'title': {'type': 'STRING'},
+                          'amountVnd': {'type': 'INTEGER'},
+                          'category': {'type': 'STRING'},
+                          'isShared': {'type': 'BOOLEAN'},
+                        },
+                        'required': [
+                          'title',
+                          'amountVnd',
+                          'category',
+                          'isShared',
+                        ],
+                      },
+                    },
+                  },
+                  'required': ['merchant', 'items'],
+                },
+                'thinkingConfig': {'thinkingBudget': 0},
+              },
+            }),
+          )
+          .timeout(const Duration(seconds: 20));
+
+      stopwatch.stop();
+      if (response.statusCode != 200) {
+        return (
+          result: null,
+          error:
+              'Gemini API trả về lỗi (${response.statusCode}). Kiểm tra lại GEMINI_API_KEY hoặc hạn mức.',
+        );
+      }
+
+      final decoded = jsonDecode(utf8.decode(response.bodyBytes));
+      final String? content = decoded['candidates']?[0]?['content']?['parts']
+          ?[0]?['text'] as String?;
+      if (content == null || content.isEmpty) {
+        return (
+          result: null,
+          error: 'Gemini không trả về dữ liệu đọc được từ ảnh.',
+        );
+      }
+
+      final startIdx = content.indexOf('{');
+      final endIdx = content.lastIndexOf('}');
+      if (startIdx == -1 || endIdx <= startIdx) {
+        return (
+          result: null,
+          error: 'Định dạng phản hồi OCR không hợp lệ.',
+        );
+      }
+
+      final jsonMap = jsonDecode(content.substring(startIdx, endIdx + 1))
+          as Map<String, dynamic>;
+      final String merchant =
+          (jsonMap['merchant'] as String?)?.trim().isNotEmpty == true
+              ? (jsonMap['merchant'] as String).trim()
+              : 'Hóa đơn quét AI';
+      final List<dynamic> rawItems =
+          jsonMap['items'] as List<dynamic>? ?? const [];
+
+      final List<ScannedReceiptItem> parsedItems = [];
+      for (final raw in rawItems) {
+        if (raw is! Map<String, dynamic>) continue;
+        final String title = (raw['title'] as String?)?.trim() ?? '';
+        final int amount = (raw['amountVnd'] as num?)?.toInt() ?? 0;
+        if (title.isEmpty || amount <= 0) continue;
+        final String catName = (raw['category'] as String?)?.trim() ?? '';
+        final ExpenseCategory category = ExpenseCategory.values.firstWhere(
+          (c) => c.name == catName,
+          orElse: () => classifyCategory(title),
+        );
+        final bool isShared = raw['isShared'] as bool? ??
+            isLikelySharedExpense(title, category);
+        parsedItems.add(
+          ScannedReceiptItem(
+            title: title,
+            amountVnd: amount,
+            category: category,
+            isShared: isShared,
+          ),
+        );
+      }
+
+      if (parsedItems.isEmpty) {
+        return (
+          result: null,
+          error:
+              'Không đọc được món hàng hay số tiền nào từ ảnh này. Hãy thử ảnh hóa đơn rõ nét hơn.',
+        );
+      }
+
+      return (
+        result: ScannedReceiptResult(
+          merchant: merchant,
+          items: parsedItems,
+          latencyMs: stopwatch.elapsedMilliseconds.toDouble(),
+        ),
+        error: null,
+      );
+    } catch (e) {
+      return (
+        result: null,
+        error: 'Lỗi kết nối Gemini Vision: $e',
+      );
+    }
   }
 }

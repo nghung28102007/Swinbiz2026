@@ -4,6 +4,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:image_picker/image_picker.dart';
 import 'package:intl/intl.dart';
 import 'package:speech_to_text/speech_recognition_error.dart';
 import 'package:speech_to_text/speech_recognition_result.dart';
@@ -497,6 +498,11 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
           ref
               .read(savageBotProvider.notifier)
               .addMultiItemReceiptScan(template: template);
+        },
+        onRealScanCompleted: (result) {
+          ref
+              .read(savageBotProvider.notifier)
+              .addScannedReceiptResult(result);
         },
       ),
     );
@@ -1758,11 +1764,15 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
   }
 }
 
-/// Interactive Vision OCR Receipt Scanner Modal Sheet with 3 Student Templates
+/// Interactive Vision OCR Receipt Scanner Modal Sheet (Real Photo + 3 Templates)
 class _VisionOcrScannerSheet extends StatefulWidget {
   final void Function(OcrReceiptTemplate template) onScanCompleted;
+  final void Function(ScannedReceiptResult result) onRealScanCompleted;
 
-  const _VisionOcrScannerSheet({required this.onScanCompleted});
+  const _VisionOcrScannerSheet({
+    required this.onScanCompleted,
+    required this.onRealScanCompleted,
+  });
 
   @override
   State<_VisionOcrScannerSheet> createState() => _VisionOcrScannerSheetState();
@@ -1771,7 +1781,11 @@ class _VisionOcrScannerSheet extends StatefulWidget {
 class _VisionOcrScannerSheetState extends State<_VisionOcrScannerSheet>
     with SingleTickerProviderStateMixin {
   late final AnimationController _laserController;
+  final ImagePicker _imagePicker = ImagePicker();
   OcrReceiptTemplate _selectedTemplate = OcrReceiptTemplate.circleK;
+  Uint8List? _pickedImageBytes;
+  String _pickedMimeType = 'image/jpeg';
+  String? _scanError;
   bool _isScanning = false;
 
   @override
@@ -1789,10 +1803,60 @@ class _VisionOcrScannerSheetState extends State<_VisionOcrScannerSheet>
     super.dispose();
   }
 
+  Future<void> _pickReceiptImage(ImageSource source) async {
+    if (_isScanning) return;
+    try {
+      final XFile? picked = await _imagePicker.pickImage(
+        source: source,
+        maxWidth: 1600,
+        imageQuality: 85,
+      );
+      if (picked == null || !mounted) return;
+      final Uint8List bytes = await picked.readAsBytes();
+      final String lowerName = picked.name.toLowerCase();
+      final String mime = lowerName.endsWith('.png')
+          ? 'image/png'
+          : (lowerName.endsWith('.webp') ? 'image/webp' : 'image/jpeg');
+      if (!mounted) return;
+      setState(() {
+        _pickedImageBytes = bytes;
+        _pickedMimeType = mime;
+        _scanError = null;
+      });
+    } catch (e) {
+      if (!mounted) return;
+      setState(() {
+        _scanError = 'Không thể mở ảnh: $e';
+      });
+    }
+  }
+
   Future<void> _startScan() async {
     if (_isScanning) return;
     HapticFeedback.mediumImpact();
-    setState(() => _isScanning = true);
+    setState(() {
+      _isScanning = true;
+      _scanError = null;
+    });
+
+    if (_pickedImageBytes != null) {
+      final outcome = await HybridNlpService.scanReceiptImageWithAi(
+        imageBytes: _pickedImageBytes!,
+        mimeType: _pickedMimeType,
+      );
+      if (!mounted) return;
+      if (outcome.result != null) {
+        widget.onRealScanCompleted(outcome.result!);
+        Navigator.of(context).pop();
+      } else {
+        setState(() {
+          _isScanning = false;
+          _scanError = outcome.error ?? 'Không thể đọc hóa đơn từ ảnh này.';
+        });
+      }
+      return;
+    }
+
     await Future.delayed(const Duration(milliseconds: 800));
     if (!mounted) return;
     widget.onScanCompleted(_selectedTemplate);
@@ -1857,37 +1921,147 @@ class _VisionOcrScannerSheetState extends State<_VisionOcrScannerSheet>
             ),
             const SizedBox(height: 12),
 
-            // 3 Selectable Realistic Receipt Templates
-            SingleChildScrollView(
-              scrollDirection: Axis.horizontal,
-              child: Row(
-                children: OcrReceiptTemplate.values.map((tpl) {
-                  final active = _selectedTemplate == tpl;
-                  return Padding(
-                    padding: const EdgeInsets.only(right: 8),
-                    child: ChoiceChip(
-                      label: Text(tpl.label),
-                      selected: active,
-                      selectedColor: AppColors.emerald,
-                      labelStyle: TextStyle(
-                        fontSize: 11.5,
-                        fontWeight: FontWeight.w800,
-                        color: active ? Colors.white : textSecondary,
+            // Upload / Capture Real Receipt Photo Actions
+            Row(
+              children: [
+                Expanded(
+                  child: OutlinedButton.icon(
+                    onPressed: _isScanning
+                        ? null
+                        : () => _pickReceiptImage(ImageSource.gallery),
+                    style: OutlinedButton.styleFrom(
+                      side: BorderSide(
+                        color: AppColors.emerald.withValues(alpha: 0.55),
                       ),
-                      onSelected: _isScanning
-                          ? null
-                          : (_) => setState(() => _selectedTemplate = tpl),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(14),
+                      ),
+                      padding: const EdgeInsets.symmetric(vertical: 10),
                     ),
-                  );
-                }).toList(),
-              ),
+                    icon: const Icon(
+                      Icons.photo_library_rounded,
+                      size: 18,
+                      color: AppColors.emerald,
+                    ),
+                    label: Text(
+                      _pickedImageBytes == null
+                          ? 'Chọn ảnh bill thật'
+                          : 'Đổi ảnh khác',
+                      style: const TextStyle(
+                        fontSize: 12,
+                        fontWeight: FontWeight.w800,
+                        color: AppColors.emerald,
+                      ),
+                    ),
+                  ),
+                ),
+                if (!kIsWeb) ...[
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: OutlinedButton.icon(
+                      onPressed: _isScanning
+                          ? null
+                          : () => _pickReceiptImage(ImageSource.camera),
+                      style: OutlinedButton.styleFrom(
+                        side: BorderSide(
+                          color: AppColors.emerald.withValues(alpha: 0.55),
+                        ),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(14),
+                        ),
+                        padding: const EdgeInsets.symmetric(vertical: 10),
+                      ),
+                      icon: const Icon(
+                        Icons.camera_alt_rounded,
+                        size: 18,
+                        color: AppColors.emerald,
+                      ),
+                      label: const Text(
+                        'Chụp hóa đơn',
+                        style: TextStyle(
+                          fontSize: 12,
+                          fontWeight: FontWeight.w800,
+                          color: AppColors.emerald,
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
+                if (_pickedImageBytes != null) ...[
+                  const SizedBox(width: 8),
+                  IconButton(
+                    tooltip: 'Dùng bill mẫu',
+                    onPressed: _isScanning
+                        ? null
+                        : () => setState(() {
+                              _pickedImageBytes = null;
+                              _scanError = null;
+                            }),
+                    icon: const Icon(
+                      Icons.close_rounded,
+                      color: AppColors.rose,
+                    ),
+                  ),
+                ],
+              ],
             ),
-            const SizedBox(height: 14),
+            const SizedBox(height: 10),
 
-            // Receipt Preview with Laser Scan Line
+            if (_pickedImageBytes == null) ...[
+              // 3 Selectable Realistic Receipt Templates
+              SingleChildScrollView(
+                scrollDirection: Axis.horizontal,
+                child: Row(
+                  children: OcrReceiptTemplate.values.map((tpl) {
+                    final active = _selectedTemplate == tpl;
+                    return Padding(
+                      padding: const EdgeInsets.only(right: 8),
+                      child: ChoiceChip(
+                        label: Text(tpl.label),
+                        selected: active,
+                        selectedColor: AppColors.emerald,
+                        labelStyle: TextStyle(
+                          fontSize: 11.5,
+                          fontWeight: FontWeight.w800,
+                          color: active ? Colors.white : textSecondary,
+                        ),
+                        onSelected: _isScanning
+                            ? null
+                            : (_) => setState(() => _selectedTemplate = tpl),
+                      ),
+                    );
+                  }).toList(),
+                ),
+              ),
+              const SizedBox(height: 14),
+            ],
+
+            // Receipt Preview (Real Uploaded Image OR Template) with Laser Scan Line
             Stack(
               children: [
-                Container(
+                if (_pickedImageBytes != null)
+                  Container(
+                    width: double.infinity,
+                    height: 220,
+                    decoration: BoxDecoration(
+                      color: isDark
+                          ? AppColors.darkElevatedSurface
+                          : const Color(0xFFF8FAFC),
+                      borderRadius: BorderRadius.circular(AppRadius.lg),
+                      border: Border.all(
+                        color: AppColors.emerald.withValues(alpha: 0.5),
+                      ),
+                    ),
+                    child: ClipRRect(
+                      borderRadius: BorderRadius.circular(AppRadius.lg - 1),
+                      child: Image.memory(
+                        _pickedImageBytes!,
+                        fit: BoxFit.contain,
+                      ),
+                    ),
+                  )
+                else
+                  Container(
                   padding: const EdgeInsets.all(18),
                   decoration: BoxDecoration(
                     color: isDark
@@ -1986,12 +2160,34 @@ class _VisionOcrScannerSheetState extends State<_VisionOcrScannerSheet>
                 ),
               ],
             ),
+            if (_scanError != null) ...[
+              const SizedBox(height: 12),
+              Container(
+                width: double.infinity,
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: AppColors.rose.withValues(alpha: 0.12),
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(
+                    color: AppColors.rose.withValues(alpha: 0.4),
+                  ),
+                ),
+                child: Text(
+                  _scanError!,
+                  style: const TextStyle(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w700,
+                    color: AppColors.rose,
+                  ),
+                ),
+              ),
+            ],
             const SizedBox(height: 18),
             SizedBox(
               width: double.infinity,
               height: 52,
               child: FilledButton.icon(
-                onPressed: _startScan,
+                onPressed: _isScanning ? null : _startScan,
                 style: FilledButton.styleFrom(
                   backgroundColor: AppColors.emerald,
                   shape: RoundedRectangleBorder(
@@ -2003,9 +2199,13 @@ class _VisionOcrScannerSheetState extends State<_VisionOcrScannerSheet>
                   color: Colors.white,
                 ),
                 label: Text(
-                  _isScanning
-                      ? 'Đang bóc tách ${_selectedTemplate.items.length} dòng hóa đơn...'
-                      : 'Bóc Tách Tự Động (${_selectedTemplate.items.length} Món)',
+                  _pickedImageBytes != null
+                      ? (_isScanning
+                          ? 'Gemini Vision đang đọc hóa đơn...'
+                          : 'Quét Hóa Đơn Thật (Gemini Vision)')
+                      : (_isScanning
+                          ? 'Đang bóc tách ${_selectedTemplate.items.length} dòng hóa đơn...'
+                          : 'Bóc Tách Tự Động (${_selectedTemplate.items.length} Món)'),
                   style: const TextStyle(
                     fontSize: 14,
                     fontWeight: FontWeight.w800,
