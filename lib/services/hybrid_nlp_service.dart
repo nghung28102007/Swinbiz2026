@@ -1190,27 +1190,19 @@ class HybridNlpService {
     required String requestBody,
     required Duration timeout,
   }) async {
-    final uri = Uri.parse(
-      'https://generativelanguage.googleapis.com/v1beta/models/gemini-flash-latest:generateContent',
-    );
-    final http.Response response = await http
-        .post(
-          uri,
-          headers: {
-            'Content-Type': 'application/json',
-            'X-goog-api-key': apiKey,
-          },
-          body: requestBody,
-        )
-        .timeout(timeout);
+    const List<String> models = [
+      'gemini-flash-lite-latest',
+      'gemini-flash-latest',
+    ];
+    http.Response? lastResponse;
 
-    if (response.statusCode != 200 && apiKey.startsWith('AQ.')) {
-      final vertexUri = Uri.parse(
-        'https://aiplatform.googleapis.com/v1/publishers/google/models/gemini-2.5-flash:generateContent?key=$apiKey',
+    for (final model in models) {
+      final uri = Uri.parse(
+        'https://generativelanguage.googleapis.com/v1beta/models/$model:generateContent',
       );
-      return http
+      final response = await http
           .post(
-            vertexUri,
+            uri,
             headers: {
               'Content-Type': 'application/json',
               'X-goog-api-key': apiKey,
@@ -1218,9 +1210,16 @@ class HybridNlpService {
             body: requestBody,
           )
           .timeout(timeout);
+      if (response.statusCode == 200) {
+        return response;
+      }
+      lastResponse = response;
+      if (response.statusCode == 401 || response.statusCode == 403) {
+        break;
+      }
     }
 
-    return response;
+    return lastResponse!;
   }
 
   /// Calls Google Gemini 2.5 Flash with strict persona rules and JSON Schema
