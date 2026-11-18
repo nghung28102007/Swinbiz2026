@@ -757,12 +757,13 @@ class SavageBotNotifier extends StateNotifier<SavageBotState> {
     );
     _persistState();
 
-    final recentRoasts = state.transactions
+    final recentResponses = state.transactions
         .where((t) => t.id != newTx.id)
         .toList()
         .reversed
-        .take(3)
-        .map((t) => t.savageRoast)
+        .take(2)
+        .expand((t) => [t.savageRoast, t.coachAdvice])
+        .where((s) => s.isNotEmpty)
         .toList();
 
     if (enablePersistence) {
@@ -775,7 +776,7 @@ class SavageBotNotifier extends StateNotifier<SavageBotState> {
         predictedRunwayDays: updatedRunwayDays,
         payerName: payer,
         isIncome: isIncome,
-        recentResponses: recentRoasts,
+        recentResponses: recentResponses,
       );
     }
 

@@ -557,6 +557,22 @@ void main() {
         isTrue,
       );
       expect(
+        HybridNlpService.parseNaturalInput('lương 10tr')?.isIncome,
+        isTrue,
+      );
+      expect(
+        HybridNlpService.parseNaturalInput('thưởng 500k')?.isIncome,
+        isTrue,
+      );
+      expect(
+        HybridNlpService.parseNaturalInput('tiền thưởng 2 triệu')?.isIncome,
+        isTrue,
+      );
+      expect(
+        HybridNlpService.parseNaturalInput('lương khô 25k')?.isIncome,
+        isFalse,
+      );
+      expect(
         HybridNlpService.parseNaturalInput('bún bò 45k')?.isIncome,
         isFalse,
       );

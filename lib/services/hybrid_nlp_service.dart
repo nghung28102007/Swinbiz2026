@@ -461,6 +461,12 @@ class HybridNlpService {
     final lower = rawInput.trim().toLowerCase();
     if (lower.isEmpty) return false;
     if (lower.startsWith('+')) return true;
+    if (RegExp(
+      r'^(?:mua|chi|trả\s+lương|đóng|thanh\s+toán)\b',
+      caseSensitive: false,
+    ).hasMatch(lower)) {
+      return false;
+    }
 
     final RegExp giverAction = RegExp(
       r'(?:mẹ|bố|ba|má|ông|bà|cô|chú|bác|anh|chị|em|bạn|ny|người yêu|sếp|nhà|gia đình|phụ huynh|trường)\s*(?:cho|gửi|chuyển|tặng|thưởng|lì xì|trả|bơm)',
@@ -469,7 +475,7 @@ class HybridNlpService {
     if (giverAction.hasMatch(lower)) return true;
 
     final RegExp incomeKeyword = RegExp(
-      r'(?:^|\s)(?:nhận\s+(?:lương|tiền|thưởng|học bổng|được|chuyển khoản)|lương\s+về|tiền\s+về|lĩnh\s+lương|lãnh\s+lương|học\s+bổng|hoàn\s+tiền|cashback|thu\s+nhập|lì\s+xì|ting\s+ting|được\s+(?:cho|tặng|thưởng|hoàn|trả)|bán\s+được|nạp\s+ví)(?=\s|$|[.,!?;:])',
+      r'(?:^|\s)(?:(?:tiền\s+)?(?:lương(?!\s*khô)|thưởng|học\s+bổng|trợ\s+cấp|hoa\s+hồng|lì\s+xì)|nhận\s+(?:lương|tiền|thưởng|học bổng|được|chuyển khoản)|lương\s+về|tiền\s+về|lĩnh\s+lương|lãnh\s+lương|hoàn\s+tiền|cashback|thu\s+nhập|ting\s+ting|bonus|được\s+(?:cho|tặng|thưởng|hoàn|trả)|bán\s+được|nạp\s+ví)(?=\s|$|[.,!?;:])',
       caseSensitive: false,
     );
     if (incomeKeyword.hasMatch(lower)) return true;
@@ -1244,17 +1250,21 @@ class HybridNlpService {
       final formattedSafe = formatVnd(remainingDailySafeVnd);
       final recentBlock = recentResponses.isEmpty
           ? 'Chưa có câu nào trước đó.'
-          : recentResponses.take(3).map((r) => '- "$r"').join('\n');
+          : recentResponses.take(4).map((r) => '- "$r"').join('\n');
 
       const systemRules = '''
-Bạn là SavageBot — trợ lý quản lý tài chính sinh viên Gen Z Việt Nam.
+Bạn là SavageBot — trợ lý quản lý tài chính sinh viên Gen Z Việt Nam với 2 nhân cách đối lập tuyệt đối.
 BẮT BUỘC TUÂN THỦ CÁC QUY TẮC SAU:
-1. ĐẦU RA: Chỉ trả về JSON hợp lệ theo schema {"savage": string, "coach": string}.
+1. ĐẦU RA: Chỉ trả về JSON hợp lệ theo schema {"savage": string, "coach": string}. Hai trường phải khác hẳn nhau về giọng điệu, góc nhìn và từ vựng.
 2. CẤM TUYỆT ĐỐI: Không dùng bất kỳ emoji/icon nào, không markdown (*, **, #), không gạch đầu dòng, không xuống dòng, không chào hỏi rườm rà.
 3. ĐỘ DÀI: Mỗi trường dài đúng 1 đến 2 câu ngắn gọn (22 đến 42 từ), vừa khít bong bóng chat điện thoại.
-4. BÁM SÁT NGỮ CẢNH: Bắt buộc nhắc trực tiếp tên người chi, tên món hàng, số tiền và gắn với hạn mức ngày còn lại hoặc số ngày sống sót trong tháng.
-5. QUY TẮC GIỌNG "savage" (Mỏ Hỗn): Đóng vai bạn thân cùng phòng Gen Z, cà khịa thông minh, hài hước, xéo xắt duyên dáng nhưng không thô tục. Nếu món <= 35.000đ thì khen kiểu "hiếm thấy biết điều" kèm cảnh báo nhẹ; nếu trà sữa/cafe/shopping hoặc chi lớn thì khịa thẳng vào nguy cơ ăn mì gói cuối tháng.
-6. QUY TẮC GIỌNG "coach" (Quân Sư): Đóng vai cố vấn tài chính điềm tĩnh, đánh giá tác động vào hạn mức ngày và đưa ra ĐÚNG 1 mẹo tiết kiệm cụ thể, thực tế cho chính món vừa mua.
+4. BÁM SÁT NGỮ CẢNH: Bắt buộc nhắc trực tiếp tên người thực hiện, nội dung món/khoản, số tiền và gắn với hạn mức ngày còn lại hoặc số ngày sống sót trong tháng.
+5. RÀO CHẶT GIỌNG "savage" (Chế độ Mỏ Hỗn): Bắt buộc đóng vai bạn thân cùng phòng xéo xắt, cà khịa thông minh, hài hước, không khuyên nhủ sáo rỗng, không thô tục.
+   - Nếu là CHI TIÊU (-): món <= 35.000đ thì khen đểu kiểu "hiếm thấy biết điều" kèm cảnh báo nhẹ; trà sữa/cafe/shopping/chi lớn thì khịa thẳng nguy cơ ăn mì gói cuối tháng.
+   - Nếu là THU NHẬP (+): châm chọc kiểu "vừa có tiền đừng vội tưởng mình tài phiệt rồi đốt sạch vào trà sữa/Shopee", nhắc giữ ví trước khi hết tháng.
+6. RÀO CHẶT GIỌNG "coach" (Chế độ Quân Sư): Bắt buộc đóng vai cố vấn tài chính điềm tĩnh, lịch sự, chuyên nghiệp, tuyệt đối không cà khịa hay mỉa mai.
+   - Nếu là CHI TIÊU (-): đánh giá tác động vào hạn mức ngày/đường băng và đưa ra ĐÚNG 1 mẹo tiết kiệm cụ thể cho chính món vừa mua.
+   - Nếu là THU NHẬP (+): chúc mừng điềm đạm và gợi ý tỷ lệ phân bổ cụ thể (ví dụ trích 20% dự phòng, phần còn lại chia cho quỹ sinh hoạt).
 7. CHỐNG LẶP MÔ TÍP: Tuyệt đối không dùng lại cách mở câu (ví dụ "Đấy lại...", "Ê...", "Lại một...") hoặc cấu trúc câu giống các câu gần đây.
 ''';
 
@@ -1295,8 +1305,16 @@ $recentBlock
           'responseSchema': {
             'type': 'OBJECT',
             'properties': {
-              'savage': {'type': 'STRING'},
-              'coach': {'type': 'STRING'},
+              'savage': {
+                'type': 'STRING',
+                'description':
+                    'Phản hồi giọng Mỏ Hỗn Gen Z xéo xắt, hài hước (22-42 từ), nhắc tên người, món, số tiền và hạn mức/đường băng; không emoji, không khuyên nhủ đạo lý.',
+              },
+              'coach': {
+                'type': 'STRING',
+                'description':
+                    'Phản hồi giọng Quân Sư tài chính điềm tĩnh, lịch sự (22-42 từ), nhắc tên người, món, số tiền, hạn mức/đường băng và 1 mẹo tiết kiệm/phân bổ cụ thể; không cà khịa, không emoji.',
+              },
             },
             'required': ['savage', 'coach'],
           },
