@@ -1237,7 +1237,7 @@ $recentBlock
 ''';
 
       final uri = Uri.parse(
-        'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent',
+        'https://generativelanguage.googleapis.com/v1beta/models/gemini-flash-latest:generateContent',
       );
 
       final response = await http
@@ -1274,13 +1274,10 @@ $recentBlock
                   },
                   'required': ['savage', 'coach'],
                 },
-                'thinkingConfig': {
-                  'thinkingBudget': 0,
-                },
               },
             }),
           )
-          .timeout(const Duration(seconds: 10));
+          .timeout(const Duration(seconds: 15));
 
       if (response.statusCode == 200) {
         final decoded = jsonDecode(utf8.decode(response.bodyBytes));
@@ -1350,7 +1347,7 @@ Quy tắc:
 ''';
 
       final uri = Uri.parse(
-        'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent',
+        'https://generativelanguage.googleapis.com/v1beta/models/gemini-flash-latest:generateContent',
       );
 
       final response = await http
@@ -1404,11 +1401,10 @@ Quy tắc:
                   },
                   'required': ['merchant', 'items'],
                 },
-                'thinkingConfig': {'thinkingBudget': 0},
               },
             }),
           )
-          .timeout(const Duration(seconds: 20));
+          .timeout(const Duration(seconds: 45));
 
       stopwatch.stop();
       if (response.statusCode != 200) {

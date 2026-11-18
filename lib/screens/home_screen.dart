@@ -1810,8 +1810,8 @@ class _VisionOcrScannerSheetState extends State<_VisionOcrScannerSheet>
     try {
       final XFile? picked = await _imagePicker.pickImage(
         source: source,
-        maxWidth: 1600,
-        imageQuality: 85,
+        maxWidth: 1024,
+        imageQuality: 75,
       );
       if (picked == null || !mounted) return;
       final Uint8List bytes = await picked.readAsBytes();
