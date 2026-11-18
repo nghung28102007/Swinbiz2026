@@ -113,6 +113,7 @@ class ParsedExpenseResult {
   final NlpRouteTier routeTier;
   final double latencyMs;
   final int estimatedTokenCostVnd;
+  final bool isIncome;
 
   const ParsedExpenseResult({
     required this.rawQuery,
@@ -122,6 +123,7 @@ class ParsedExpenseResult {
     required this.routeTier,
     required this.latencyMs,
     required this.estimatedTokenCostVnd,
+    this.isIncome = false,
   });
 }
 
@@ -139,6 +141,7 @@ class ExpenseTransaction {
   final String coachAdvice;
   final bool isSettled;
   final String? linkedSplitId;
+  final bool isIncome;
 
   const ExpenseTransaction({
     required this.id,
@@ -154,6 +157,7 @@ class ExpenseTransaction {
     required this.coachAdvice,
     this.isSettled = true,
     this.linkedSplitId,
+    this.isIncome = false,
   });
 
   ExpenseTransaction copyWith({
@@ -170,6 +174,7 @@ class ExpenseTransaction {
     String? coachAdvice,
     bool? isSettled,
     String? linkedSplitId,
+    bool? isIncome,
   }) {
     return ExpenseTransaction(
       id: id ?? this.id,
@@ -185,6 +190,7 @@ class ExpenseTransaction {
       coachAdvice: coachAdvice ?? this.coachAdvice,
       isSettled: isSettled ?? this.isSettled,
       linkedSplitId: linkedSplitId ?? this.linkedSplitId,
+      isIncome: isIncome ?? this.isIncome,
     );
   }
 
@@ -203,6 +209,7 @@ class ExpenseTransaction {
       'coachAdvice': coachAdvice,
       'isSettled': isSettled,
       if (linkedSplitId != null) 'linkedSplitId': linkedSplitId,
+      if (isIncome) 'isIncome': true,
     };
   }
 
@@ -228,6 +235,7 @@ class ExpenseTransaction {
       coachAdvice: json['coachAdvice'] as String? ?? '',
       isSettled: json['isSettled'] as bool? ?? true,
       linkedSplitId: json['linkedSplitId'] as String?,
+      isIncome: json['isIncome'] as bool? ?? false,
     );
   }
 }
@@ -425,7 +433,9 @@ class HybridNlpService {
           extractedItem[0].toUpperCase() + extractedItem.substring(1);
     }
 
-    final ExpenseCategory category = classifyCategory(extractedItem);
+    final bool income = isLikelyIncome(rawQuery);
+    final ExpenseCategory category =
+        income ? ExpenseCategory.other : classifyCategory(extractedItem);
     final String lowerRaw = rawQuery.toLowerCase();
     final bool isComplexQuery = rawQuery.split(RegExp(r'\s+')).length > 8 ||
         lowerRaw.contains('tư vấn') ||
@@ -443,7 +453,32 @@ class HybridNlpService {
           : NlpRouteTier.tier1LocalRegex,
       latencyMs: isComplexQuery ? 380.0 : 1.4,
       estimatedTokenCostVnd: isComplexQuery ? 110 : 0,
+      isIncome: income,
     );
+  }
+
+  static bool isLikelyIncome(String rawInput) {
+    final lower = rawInput.trim().toLowerCase();
+    if (lower.isEmpty) return false;
+    if (lower.startsWith('+')) return true;
+
+    final RegExp giverAction = RegExp(
+      r'(?:mẹ|bố|ba|má|ông|bà|cô|chú|bác|anh|chị|em|bạn|ny|người yêu|sếp|nhà|gia đình|phụ huynh|trường)\s*(?:cho|gửi|chuyển|tặng|thưởng|lì xì|trả|bơm)',
+      caseSensitive: false,
+    );
+    if (giverAction.hasMatch(lower)) return true;
+
+    final RegExp incomeKeyword = RegExp(
+      r'(?:^|\s)(?:nhận\s+(?:lương|tiền|thưởng|học bổng|được|chuyển khoản)|lương\s+về|tiền\s+về|lĩnh\s+lương|lãnh\s+lương|học\s+bổng|hoàn\s+tiền|cashback|thu\s+nhập|lì\s+xì|ting\s+ting|được\s+(?:cho|tặng|thưởng|hoàn|trả)|bán\s+được|nạp\s+ví)(?=\s|$|[.,!?;:])',
+      caseSensitive: false,
+    );
+    if (incomeKeyword.hasMatch(lower)) return true;
+
+    final RegExp leadingIncomeVerb = RegExp(
+      r'^(?:nhận|thu|được\s+cho|được\s+tặng)\b',
+      caseSensitive: false,
+    );
+    return leadingIncomeVerb.hasMatch(lower);
   }
 
   /// Detects if a query describes a shared group/dorm expense from keywords or category.
@@ -749,14 +784,43 @@ class HybridNlpService {
     required int remainingDailySafeVnd,
     required int predictedRunwayDays,
     required String payerName,
+    bool isIncome = false,
   }) {
     final formattedAmount = formatVnd(amountVnd);
     final formattedSafe = formatVnd(remainingDailySafeVnd);
     final lower = itemTitle.toLowerCase();
-    final String bucketKey = '${mode.name}_${category.name}';
+    final String bucketKey =
+        '${mode.name}_${isIncome ? 'income' : category.name}';
 
-    final ({List<String> openers, List<String> closers}) parts =
-        mode == PersonaMode.savage
+    final ({List<String> openers, List<String> closers}) parts = isIncome
+        ? (mode == PersonaMode.savage
+            ? (
+                openers: [
+                  'Ồ hô $payerName vừa được bơm +$formattedAmount từ "$itemTitle"!',
+                  'Ting ting +$formattedAmount vào ví $payerName từ "$itemTitle"!',
+                  'Giàu đột xuất với khoản "$itemTitle" (+$formattedAmount) rồi đấy $payerName!',
+                  'Nguồn cứu trợ "$itemTitle" (+$formattedAmount) vừa hạ cánh đúng lúc!',
+                ],
+                closers: [
+                  'Đừng thấy có tiền mà mang đi đốt trà sữa hết trong một nốt nhạc nhé, đường băng tăng lên $predictedRunwayDays ngày rồi.',
+                  'Hạn mức an toàn hôm nay nhảy lên $formattedSafe — giữ chặt cái ví lại kẻo cuối tuần lại về mo!',
+                  'Giữ được 24 giờ không chốt đơn Shopee sau khi nhận tiền mới là bản lĩnh của $payerName!',
+                  'Quỹ tháng vừa hồi sinh, nhớ để dành một ít chứ đừng ăn mừng quá tay nhé.',
+                ],
+              )
+            : (
+                openers: [
+                  'Tuyệt vời! Đã cộng +$formattedAmount từ "$itemTitle" vào ngân sách của $payerName.',
+                  'Ghi nhận khoản thu "$itemTitle" (+$formattedAmount) thành công.',
+                  'Ngân sách vừa được bổ sung +$formattedAmount từ "$itemTitle".',
+                ],
+                closers: [
+                  'Đường băng tài chính đã tăng lên $predictedRunwayDays ngày và hạn mức hôm nay là $formattedSafe.',
+                  'Mẹo nhỏ: bạn nên trích ngay 20% khoản thu mới này vào quỹ dự phòng trước khi chi tiêu.',
+                  'Với số dư mới, kế hoạch tài chính tháng của $payerName đang rất an toàn.',
+                ],
+              ))
+        : (mode == PersonaMode.savage
             ? _buildSavageParts(
                 lower: lower,
                 itemTitle: itemTitle,
@@ -778,7 +842,7 @@ class HybridNlpService {
                 remainingDailySafeVnd: remainingDailySafeVnd,
                 predictedRunwayDays: predictedRunwayDays,
                 payerName: payerName,
-              );
+              ));
 
     final int openerIdx =
         _pickNonRepeatingIndex(bucketKey, parts.openers.length, _lastOpenerIndex);
@@ -1131,6 +1195,7 @@ class HybridNlpService {
     required int remainingDailySafeVnd,
     required int predictedRunwayDays,
     required String payerName,
+    bool isIncome = false,
     List<String> recentResponses = const [],
     String? customApiKey,
   }) async {
@@ -1158,12 +1223,14 @@ BẮT BUỘC TUÂN THỦ CÁC QUY TẮC SAU:
 
       final userPrompt = '''
 DỮ LIỆU GIAO DỊCH MỚI:
-- Người chi: $payerName
-- Món chi tiêu: $itemTitle
+- Loại giao dịch: ${isIncome ? 'THU NHẬP / NHẬN TIỀN (+)' : 'CHI TIÊU (-)'}
+- Người thực hiện: $payerName
+- Nội dung: $itemTitle
 - Số tiền: $formattedAmount ($amountVnd VNĐ)
-- Danh mục: ${category.labelVi}
+- Danh mục: ${isIncome ? 'Thu nhập / Bổ sung quỹ' : category.labelVi}
 - Hạn mức tiêu thêm an toàn hôm nay còn: $formattedSafe
 - Đường băng tài chính còn lại trong tháng: $predictedRunwayDays ngày
+${isIncome ? '(LƯU Ý: Đây là khoản CỘNG TIỀN VÀO VÍ, KHÔNG PHẢI CHI TIÊU — savage hãy chúc mừng kiểu cà khịa nhẹ đừng vội tiêu hết, coach hãy khuyên cách phân bổ/tiết kiệm khoản tiền vừa nhận!)' : ''}
 
 CÁC CÂU ĐÃ NÓI GẦN ĐÂY (KHÔNG ĐƯỢC LẶP LẠI MÔ TÍP):
 $recentBlock

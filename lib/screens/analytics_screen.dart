@@ -1076,11 +1076,13 @@ class _AnalyticsScreenState extends ConsumerState<AnalyticsScreen> {
                             crossAxisAlignment: CrossAxisAlignment.end,
                             children: [
                               Text(
-                                '-${HybridNlpService.formatVnd(tx.amountVnd)}',
-                                style: const TextStyle(
+                                '${tx.isIncome ? '+' : '-'}${HybridNlpService.formatVnd(tx.amountVnd)}',
+                                style: TextStyle(
                                   fontSize: 13.5,
                                   fontWeight: FontWeight.w900,
-                                  color: AppColors.rose,
+                                  color: tx.isIncome
+                                      ? AppColors.emerald
+                                      : AppColors.rose,
                                 ),
                               ),
                               const SizedBox(height: 4),

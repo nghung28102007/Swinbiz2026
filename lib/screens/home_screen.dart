@@ -1220,11 +1220,13 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
                                               ),
                                               const SizedBox(width: 10),
                                               Text(
-                                                '-${HybridNlpService.formatVnd(tx.amountVnd)}',
+                                                '${tx.isIncome ? '+' : '-'}${HybridNlpService.formatVnd(tx.amountVnd)}',
                                                 style: TextStyle(
                                                   fontSize: 14,
                                                   fontWeight: FontWeight.w900,
-                                                  color: personaAccent,
+                                                  color: tx.isIncome
+                                                      ? AppColors.emerald
+                                                      : personaAccent,
                                                 ),
                                               ),
                                             ],

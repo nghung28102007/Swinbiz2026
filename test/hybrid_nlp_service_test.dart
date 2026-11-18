@@ -545,5 +545,37 @@ void main() {
         '1.50B đ',
       );
     });
+
+    test('detects Vietnamese income phrases and credits budget instead of subtracting', () {
+      final parsedMom = HybridNlpService.parseNaturalInput('mẹ cho 1tr2');
+      expect(parsedMom, isNotNull);
+      expect(parsedMom!.isIncome, isTrue);
+      expect(parsedMom.amountVnd, 1200000);
+
+      expect(
+        HybridNlpService.parseNaturalInput('nhận lương 5 triệu')?.isIncome,
+        isTrue,
+      );
+      expect(
+        HybridNlpService.parseNaturalInput('bún bò 45k')?.isIncome,
+        isFalse,
+      );
+
+      final container = ProviderContainer();
+      addTearDown(container.dispose);
+      final notifier = container.read(savageBotProvider.notifier);
+      final int initialBudget = notifier.state.monthlyBudget;
+      final int initialSpent = notifier.state.totalSpentThisMonth;
+
+      notifier.addExpenseFromInput('mẹ cho 1tr2');
+      expect(notifier.state.monthlyBudget, initialBudget + 1200000);
+      expect(notifier.state.totalSpentThisMonth, initialSpent);
+      expect(notifier.state.transactions.last.isIncome, isTrue);
+
+      final deleted =
+          notifier.deleteTransaction(notifier.state.transactions.last.id);
+      expect(deleted, isNotNull);
+      expect(notifier.state.monthlyBudget, initialBudget);
+    });
   });
 }
