@@ -657,20 +657,22 @@ class SavageBotNotifier extends StateNotifier<SavageBotState> {
     final int updatedMonthlyBudget = isIncome
         ? state.monthlyBudget + parsed.amountVnd
         : state.monthlyBudget;
+    final int updatedDailyBase = isIncome && updatedMonthlyBudget > 0
+        ? (updatedMonthlyBudget / 30).round().clamp(1000, updatedMonthlyBudget)
+        : state.dailyBaseAllowance;
 
     final int updatedSafeToday = isIncome
         ? (state.dailySafeToSpend + (parsed.amountVnd / 30).round())
-            .clamp(0, state.dailyBaseAllowance * 3)
+            .clamp(0, updatedDailyBase * 3)
         : (state.dailySafeToSpend - personalImpactVnd)
-            .clamp(0, state.dailyBaseAllowance);
+            .clamp(0, updatedDailyBase);
 
     final int newTotalSpent = isIncome
         ? state.totalSpentThisMonth
         : state.totalSpentThisMonth + parsed.amountVnd;
     final int remainingMonth =
         (updatedMonthlyBudget - newTotalSpent).clamp(0, updatedMonthlyBudget);
-    final int baseAllowance =
-        state.dailyBaseAllowance <= 0 ? 1 : state.dailyBaseAllowance;
+    final int baseAllowance = updatedDailyBase <= 0 ? 1 : updatedDailyBase;
     final int updatedRunwayDays =
         (remainingMonth / baseAllowance).floor().clamp(1, 30);
 
@@ -737,6 +739,7 @@ class SavageBotNotifier extends StateNotifier<SavageBotState> {
 
     state = state.copyWith(
       monthlyBudget: updatedMonthlyBudget,
+      dailyBaseAllowance: updatedDailyBase,
       transactions: [...state.transactions, newTx],
       splitItems: updatedSplits,
       settledByMember: updatedSettled,
@@ -986,7 +989,9 @@ class SavageBotNotifier extends StateNotifier<SavageBotState> {
     required List<ExpenseTransaction> transactions,
     required List<RoommateSplitItem> splitItems,
     required Map<String, bool> settledByMember,
+    int? overrideDailyBase,
   }) {
+    final int baseAllowance = overrideDailyBase ?? state.dailyBaseAllowance;
     final int memberCount = state.members.isEmpty ? 1 : state.members.length;
     int totalPersonalSpentToday = 0;
     int incomeBoost = 0;
@@ -1016,11 +1021,11 @@ class SavageBotNotifier extends StateNotifier<SavageBotState> {
       }
     }
 
-    return (state.dailyBaseAllowance -
+    return (baseAllowance -
             totalPersonalSpentToday +
             settledBoost +
             incomeBoost)
-        .clamp(0, state.dailyBaseAllowance * 3);
+        .clamp(0, baseAllowance * 3);
   }
 
   void editTransaction(
@@ -1161,21 +1166,24 @@ class SavageBotNotifier extends StateNotifier<SavageBotState> {
       }
     }
 
+    final int updatedBudget = removed.isIncome
+        ? (state.monthlyBudget - removed.amountVnd).clamp(0, state.monthlyBudget)
+        : state.monthlyBudget;
+    final int updatedDailyBase = removed.isIncome && updatedBudget > 0
+        ? (updatedBudget / 30).round().clamp(1000, updatedBudget)
+        : state.dailyBaseAllowance;
     final int updatedSafeToday = _calculateDailySafeToSpend(
       transactions: updatedList,
       splitItems: updatedSplits,
       settledByMember: state.settledByMember,
+      overrideDailyBase: updatedDailyBase,
     );
-    final int updatedBudget = removed.isIncome
-        ? (state.monthlyBudget - removed.amountVnd).clamp(0, state.monthlyBudget)
-        : state.monthlyBudget;
     final int newTotalSpent = updatedList
         .where((t) => !t.isIncome)
         .fold(0, (sum, item) => sum + item.amountVnd);
     final int remainingMonth =
         (updatedBudget - newTotalSpent).clamp(0, updatedBudget);
-    final int baseAllowance =
-        state.dailyBaseAllowance <= 0 ? 1 : state.dailyBaseAllowance;
+    final int baseAllowance = updatedDailyBase <= 0 ? 1 : updatedDailyBase;
     final int updatedRunway =
         (remainingMonth / baseAllowance).floor().clamp(1, 30);
 
@@ -1194,6 +1202,7 @@ class SavageBotNotifier extends StateNotifier<SavageBotState> {
 
     state = state.copyWith(
       monthlyBudget: updatedBudget,
+      dailyBaseAllowance: updatedDailyBase,
       transactions: updatedList,
       splitItems: updatedSplits,
       dailySafeToSpend: updatedSafeToday,
@@ -1218,26 +1227,30 @@ class SavageBotNotifier extends StateNotifier<SavageBotState> {
         ? [linkedSplit, ...state.splitItems]
         : state.splitItems;
 
+    final int updatedBudget = tx.isIncome
+        ? state.monthlyBudget + tx.amountVnd
+        : state.monthlyBudget;
+    final int updatedDailyBase = tx.isIncome && updatedBudget > 0
+        ? (updatedBudget / 30).round().clamp(1000, updatedBudget)
+        : state.dailyBaseAllowance;
     final int updatedSafeToday = _calculateDailySafeToSpend(
       transactions: updatedList,
       splitItems: updatedSplits,
       settledByMember: state.settledByMember,
+      overrideDailyBase: updatedDailyBase,
     );
-    final int updatedBudget = tx.isIncome
-        ? state.monthlyBudget + tx.amountVnd
-        : state.monthlyBudget;
     final int newTotalSpent = updatedList
         .where((t) => !t.isIncome)
         .fold(0, (sum, item) => sum + item.amountVnd);
     final int remainingMonth =
         (updatedBudget - newTotalSpent).clamp(0, updatedBudget);
-    final int baseAllowance =
-        state.dailyBaseAllowance <= 0 ? 1 : state.dailyBaseAllowance;
+    final int baseAllowance = updatedDailyBase <= 0 ? 1 : updatedDailyBase;
     final int updatedRunway =
         (remainingMonth / baseAllowance).floor().clamp(1, 30);
 
     state = state.copyWith(
       monthlyBudget: updatedBudget,
+      dailyBaseAllowance: updatedDailyBase,
       transactions: updatedList,
       splitItems: updatedSplits,
       dailySafeToSpend: updatedSafeToday,
