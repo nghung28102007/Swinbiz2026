@@ -191,6 +191,7 @@ void main() {
       final initialTier1 = notifier.state.tier1QueryCount;
       final initialTier2 = notifier.state.tier2QueryCount;
       final initialSplits = notifier.state.splitItems.length;
+      final initialTxCount = notifier.state.transactions.length;
 
       notifier.addMultiItemReceiptScan(
         template: OcrReceiptTemplate.dormUtilities,
@@ -198,6 +199,7 @@ void main() {
 
       expect(notifier.state.tier1QueryCount, initialTier1);
       expect(notifier.state.tier2QueryCount, initialTier2 + 1);
+      expect(notifier.state.transactions.length, initialTxCount + 1);
       expect(notifier.state.splitItems.length, greaterThan(initialSplits));
     });
 

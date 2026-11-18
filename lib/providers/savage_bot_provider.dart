@@ -868,112 +868,121 @@ class SavageBotNotifier extends StateNotifier<SavageBotState> {
     required double latencyMs,
     required List<ScannedReceiptItem> items,
   }) {
+    if (items.isEmpty) return;
     final now = DateTime.now();
     final int baseMs = now.millisecondsSinceEpoch;
     final String payer = state.activePayer;
     final int memberCount = state.members.isEmpty ? 1 : state.members.length;
-
-    int runningTotalSpent = state.totalSpentThisMonth;
-    int runningSafeToday = state.dailySafeToSpend;
     final int baseAllowance =
         state.dailyBaseAllowance <= 0 ? 1 : state.dailyBaseAllowance;
 
-    final List<ExpenseTransaction> ocrTransactions = [];
-    final List<RoommateSplitItem> addedSplits = [];
-    bool hasBobaItem = false;
-    bool hasAnySharedItem = false;
+    final bool hasBobaItem =
+        items.any((item) => item.category == ExpenseCategory.bobaAndCafe);
+    final bool hasAnySharedItem = items.any((item) => item.isShared);
+    final ExpenseCategory dominantCategory = items
+        .reduce((a, b) => b.amountVnd > a.amountVnd ? b : a)
+        .category;
 
-    for (int i = 0; i < items.length; i++) {
-      final item = items[i];
-      if (item.category == ExpenseCategory.bobaAndCafe) {
-        hasBobaItem = true;
-      }
-      if (item.isShared) {
-        hasAnySharedItem = true;
-      }
-      runningTotalSpent += item.amountVnd;
-      final int personalImpact = item.isShared
-          ? (item.amountVnd / memberCount).round()
-          : item.amountVnd;
-      runningSafeToday =
-          (runningSafeToday - personalImpact).clamp(0, state.dailyBaseAllowance);
-      final int remainingMonth =
-          (state.monthlyBudget - runningTotalSpent).clamp(0, state.monthlyBudget);
-      final int runway =
-          (remainingMonth / baseAllowance).floor().clamp(1, 30);
-      final String? splitId = item.isShared ? 'split-ocr-$baseMs-$i' : null;
+    final String combinedTitle = items.length == 1
+        ? items.first.title
+        : '$sourceLabel: ${items.map((e) => e.title).join(', ')}';
 
-      ocrTransactions.add(
-        ExpenseTransaction(
-          id: 'tx-ocr-$baseMs-$i',
-          rawInput: '[OCR $sourceLabel] ${item.title}',
-          title: item.title,
-          amountVnd: item.amountVnd,
-          category: item.category,
-          timestamp: now.add(Duration(milliseconds: i)),
-          payerName: payer,
-          routeTier: NlpRouteTier.tier2DeepLlm,
-          latencyMs: latencyMs,
-          savageRoast: HybridNlpService.generatePersonaResponse(
-            mode: PersonaMode.savage,
-            itemTitle: item.title,
-            amountVnd: item.amountVnd,
-            category: item.category,
-            remainingDailySafeVnd: runningSafeToday,
-            predictedRunwayDays: runway,
-            payerName: payer,
-          ),
-          coachAdvice: HybridNlpService.generatePersonaResponse(
-            mode: PersonaMode.coach,
-            itemTitle: item.title,
-            amountVnd: item.amountVnd,
-            category: item.category,
-            remainingDailySafeVnd: runningSafeToday,
-            predictedRunwayDays: runway,
-            payerName: payer,
-          ),
-          isSettled: !item.isShared,
-          linkedSplitId: splitId,
-        ),
-      );
-
-      if (item.isShared && splitId != null) {
-        addedSplits.add(
-          RoommateSplitItem(
-            id: splitId,
-            title: item.title,
-            totalAmountVnd: item.amountVnd,
-            assignedRoommates: List<String>.from(state.members),
-          ),
-        );
-      }
-    }
-
+    final int personalImpact =
+        hasAnySharedItem ? (totalVnd / memberCount).round() : totalVnd;
+    final int updatedSafeToday =
+        (state.dailySafeToSpend - personalImpact).clamp(0, state.dailyBaseAllowance);
+    final int newTotalSpent = state.totalSpentThisMonth + totalVnd;
     final int finalRemaining =
-        (state.monthlyBudget - runningTotalSpent).clamp(0, state.monthlyBudget);
+        (state.monthlyBudget - newTotalSpent).clamp(0, state.monthlyBudget);
     final int finalRunway =
         (finalRemaining / baseAllowance).floor().clamp(1, 30);
-    final String formattedTotal = HybridNlpService.formatVnd(totalVnd);
-    final String secStr = (latencyMs / 1000).toStringAsFixed(1);
 
-    final String summaryRoast =
-        'Quét 1 tờ bill $sourceLabel ra liền ${items.length} món ($formattedTotal)! Vision AI bắt bài không trượt phát nào!';
-    final String summaryCoach =
-        'Vision OCR đã bóc tách tự động ${items.length} món từ hóa đơn $sourceLabel ($formattedTotal) trong ${secStr}s. Tiết kiệm 45 giây nhập tay.';
+    final String? splitId = hasAnySharedItem ? 'split-ocr-$baseMs' : null;
+    final String txId = 'tx-ocr-$baseMs';
+
+    final String roastText = HybridNlpService.generatePersonaResponse(
+      mode: PersonaMode.savage,
+      itemTitle: combinedTitle,
+      amountVnd: totalVnd,
+      category: dominantCategory,
+      remainingDailySafeVnd: updatedSafeToday,
+      predictedRunwayDays: finalRunway,
+      payerName: payer,
+    );
+
+    final String coachText = HybridNlpService.generatePersonaResponse(
+      mode: PersonaMode.coach,
+      itemTitle: combinedTitle,
+      amountVnd: totalVnd,
+      category: dominantCategory,
+      remainingDailySafeVnd: updatedSafeToday,
+      predictedRunwayDays: finalRunway,
+      payerName: payer,
+    );
+
+    final ExpenseTransaction combinedTx = ExpenseTransaction(
+      id: txId,
+      rawInput: '[OCR $sourceLabel] $combinedTitle',
+      title: combinedTitle,
+      amountVnd: totalVnd,
+      category: dominantCategory,
+      timestamp: now,
+      payerName: payer,
+      routeTier: NlpRouteTier.tier2DeepLlm,
+      latencyMs: latencyMs,
+      savageRoast: roastText,
+      coachAdvice: coachText,
+      isSettled: !hasAnySharedItem,
+      linkedSplitId: splitId,
+    );
+
+    final List<RoommateSplitItem>? updatedSplits =
+        hasAnySharedItem && splitId != null
+            ? [
+                RoommateSplitItem(
+                  id: splitId,
+                  title: combinedTitle,
+                  totalAmountVnd: totalVnd,
+                  assignedRoommates: List<String>.from(state.members),
+                ),
+                ...state.splitItems,
+              ]
+            : null;
 
     state = state.copyWith(
-      transactions: [...state.transactions, ...ocrTransactions],
-      splitItems:
-          addedSplits.isNotEmpty ? [...addedSplits, ...state.splitItems] : null,
+      transactions: [...state.transactions, combinedTx],
+      splitItems: updatedSplits,
       settledByMember: hasAnySharedItem ? const {} : null,
-      dailySafeToSpend: runningSafeToday,
+      dailySafeToSpend: updatedSafeToday,
       predictedRunwayDays: finalRunway,
       noBobaStreakDays: hasBobaItem ? 0 : state.noBobaStreakDays,
       tier2QueryCount: state.tier2QueryCount + 1,
       latestSpeechBubble:
-          state.activePersona == PersonaMode.savage ? summaryRoast : summaryCoach,
+          state.activePersona == PersonaMode.savage ? roastText : coachText,
     );
     _persistState();
+
+    if (enablePersistence) {
+      final recentResponses = state.transactions
+          .where((t) => t.id != txId)
+          .toList()
+          .reversed
+          .take(2)
+          .expand((t) => [t.savageRoast, t.coachAdvice])
+          .where((s) => s.isNotEmpty)
+          .toList();
+
+      _upgradeTransactionWithLiveAi(
+        txId: txId,
+        itemTitle: combinedTitle,
+        amountVnd: totalVnd,
+        category: dominantCategory,
+        remainingDailySafeVnd: updatedSafeToday,
+        predictedRunwayDays: finalRunway,
+        payerName: payer,
+        recentResponses: recentResponses,
+      );
+    }
   }
 
   String _inferredSplitIdForTx(ExpenseTransaction tx) {
