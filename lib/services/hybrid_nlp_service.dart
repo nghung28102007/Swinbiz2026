@@ -1185,6 +1185,41 @@ class HybridNlpService {
         .trim();
   }
 
+  static Future<http.Response> _postGeminiWithVertexFallback({
+    required String apiKey,
+    required String requestBody,
+    required Duration timeout,
+  }) async {
+    final uri = Uri.parse(
+      'https://generativelanguage.googleapis.com/v1beta/models/gemini-flash-latest:generateContent',
+    );
+    final http.Response response = await http
+        .post(
+          uri,
+          headers: {
+            'Content-Type': 'application/json',
+            'X-goog-api-key': apiKey,
+          },
+          body: requestBody,
+        )
+        .timeout(timeout);
+
+    if (response.statusCode != 200 && apiKey.startsWith('AQ.')) {
+      final vertexUri = Uri.parse(
+        'https://aiplatform.googleapis.com/v1/publishers/google/models/gemini-2.5-flash:generateContent?key=$apiKey',
+      );
+      return http
+          .post(
+            vertexUri,
+            headers: const {'Content-Type': 'application/json'},
+            body: requestBody,
+          )
+          .timeout(timeout);
+    }
+
+    return response;
+  }
+
   /// Calls Google Gemini 2.5 Flash with strict persona rules and JSON Schema
   /// to generate a bespoke, non-repetitive Savage Roast & Coach Advice per
   /// transaction. Falls back gracefully to null if offline or rate-limited.
@@ -1236,48 +1271,41 @@ CÁC CÂU ĐÃ NÓI GẦN ĐÂY (KHÔNG ĐƯỢC LẶP LẠI MÔ TÍP):
 $recentBlock
 ''';
 
-      final uri = Uri.parse(
-        'https://generativelanguage.googleapis.com/v1beta/models/gemini-flash-latest:generateContent',
-      );
-
-      final response = await http
-          .post(
-            uri,
-            headers: {
-              'Content-Type': 'application/json',
-              'X-goog-api-key': apiKey,
+      final String requestBody = jsonEncode({
+        'systemInstruction': {
+          'parts': [
+            {'text': systemRules},
+          ],
+        },
+        'contents': [
+          {
+            'role': 'user',
+            'parts': [
+              {'text': userPrompt},
+            ],
+          },
+        ],
+        'generationConfig': {
+          'temperature': 0.92,
+          'topP': 0.95,
+          'maxOutputTokens': 320,
+          'responseMimeType': 'application/json',
+          'responseSchema': {
+            'type': 'OBJECT',
+            'properties': {
+              'savage': {'type': 'STRING'},
+              'coach': {'type': 'STRING'},
             },
-            body: jsonEncode({
-              'systemInstruction': {
-                'parts': [
-                  {'text': systemRules},
-                ],
-              },
-              'contents': [
-                {
-                  'role': 'user',
-                  'parts': [
-                    {'text': userPrompt},
-                  ],
-                },
-              ],
-              'generationConfig': {
-                'temperature': 0.92,
-                'topP': 0.95,
-                'maxOutputTokens': 320,
-                'responseMimeType': 'application/json',
-                'responseSchema': {
-                  'type': 'OBJECT',
-                  'properties': {
-                    'savage': {'type': 'STRING'},
-                    'coach': {'type': 'STRING'},
-                  },
-                  'required': ['savage', 'coach'],
-                },
-              },
-            }),
-          )
-          .timeout(const Duration(seconds: 15));
+            'required': ['savage', 'coach'],
+          },
+        },
+      });
+
+      final response = await _postGeminiWithVertexFallback(
+        apiKey: apiKey,
+        requestBody: requestBody,
+        timeout: const Duration(seconds: 15),
+      );
 
       if (response.statusCode == 200) {
         final decoded = jsonDecode(utf8.decode(response.bodyBytes));
@@ -1346,65 +1374,58 @@ Quy tắc:
 - Nếu ảnh không phải hóa đơn hoặc không đọc được số tiền nào, trả về items = [].
 ''';
 
-      final uri = Uri.parse(
-        'https://generativelanguage.googleapis.com/v1beta/models/gemini-flash-latest:generateContent',
-      );
-
-      final response = await http
-          .post(
-            uri,
-            headers: {
-              'Content-Type': 'application/json',
-              'X-goog-api-key': apiKey,
-            },
-            body: jsonEncode({
-              'contents': [
-                {
-                  'role': 'user',
-                  'parts': [
-                    {'text': prompt},
-                    {
-                      'inlineData': {
-                        'mimeType': mimeType,
-                        'data': base64Encode(imageBytes),
-                      },
-                    },
-                  ],
-                },
-              ],
-              'generationConfig': {
-                'temperature': 0.1,
-                'maxOutputTokens': 1024,
-                'responseMimeType': 'application/json',
-                'responseSchema': {
-                  'type': 'OBJECT',
-                  'properties': {
-                    'merchant': {'type': 'STRING'},
-                    'items': {
-                      'type': 'ARRAY',
-                      'items': {
-                        'type': 'OBJECT',
-                        'properties': {
-                          'title': {'type': 'STRING'},
-                          'amountVnd': {'type': 'INTEGER'},
-                          'category': {'type': 'STRING'},
-                          'isShared': {'type': 'BOOLEAN'},
-                        },
-                        'required': [
-                          'title',
-                          'amountVnd',
-                          'category',
-                          'isShared',
-                        ],
-                      },
-                    },
-                  },
-                  'required': ['merchant', 'items'],
+      final String requestBody = jsonEncode({
+        'contents': [
+          {
+            'role': 'user',
+            'parts': [
+              {'text': prompt},
+              {
+                'inlineData': {
+                  'mimeType': mimeType,
+                  'data': base64Encode(imageBytes),
                 },
               },
-            }),
-          )
-          .timeout(const Duration(seconds: 45));
+            ],
+          },
+        ],
+        'generationConfig': {
+          'temperature': 0.1,
+          'maxOutputTokens': 1024,
+          'responseMimeType': 'application/json',
+          'responseSchema': {
+            'type': 'OBJECT',
+            'properties': {
+              'merchant': {'type': 'STRING'},
+              'items': {
+                'type': 'ARRAY',
+                'items': {
+                  'type': 'OBJECT',
+                  'properties': {
+                    'title': {'type': 'STRING'},
+                    'amountVnd': {'type': 'INTEGER'},
+                    'category': {'type': 'STRING'},
+                    'isShared': {'type': 'BOOLEAN'},
+                  },
+                  'required': [
+                    'title',
+                    'amountVnd',
+                    'category',
+                    'isShared',
+                  ],
+                },
+              },
+            },
+            'required': ['merchant', 'items'],
+          },
+        },
+      });
+
+      final response = await _postGeminiWithVertexFallback(
+        apiKey: apiKey,
+        requestBody: requestBody,
+        timeout: const Duration(seconds: 45),
+      );
 
       stopwatch.stop();
       if (response.statusCode != 200) {
