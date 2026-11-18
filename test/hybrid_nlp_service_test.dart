@@ -602,10 +602,10 @@ void main() {
       notifier.completeNewUserOnboarding(
         groupName: 'Ví Hưng',
         members: const ['Hưng'],
-        treasurerName: 'Hưng',
+        monthlyBudget: 4500000,
+        activePersona: PersonaMode.savage,
         bankBin: '970422',
         bankAccount: '0846281007',
-        monthlyBudget: 4500000,
       );
 
       // Add a shared living expense while only 1 member exists
