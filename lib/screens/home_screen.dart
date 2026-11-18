@@ -1910,9 +1910,9 @@ class _VisionOcrScannerSheetState extends State<_VisionOcrScannerSheet>
                     color: AppColors.emerald.withValues(alpha: 0.15),
                     borderRadius: BorderRadius.circular(99),
                   ),
-                  child: const Text(
-                    '< 0.8s OCR',
-                    style: TextStyle(
+                  child: Text(
+                    _pickedImageBytes != null ? 'Gemini Vision' : '< 0.8s Demo',
+                    style: const TextStyle(
                       fontSize: 11,
                       fontWeight: FontWeight.w800,
                       color: AppColors.emerald,
